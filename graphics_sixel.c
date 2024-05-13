@@ -652,7 +652,7 @@ parse_sixel_char(char cp)
 	    return finished_parsing(s_xw, s_graphic);
 	}
 
-	/* Aspect ratio of "pixels" in image. */
+	/* Save data from Raster Attributes */
 	s_context.aspect_vertical   = s_raster_params[s_GETTINGPAN];
 	s_context.aspect_horizontal = s_raster_params[s_GETTINGPAD];
 	update_sixel_aspect(&s_context, s_graphic);
