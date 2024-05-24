@@ -459,8 +459,8 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
     return 0;
 }
 
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-#define TS_NANOSEC 1L
+#ifdef _POSIX_MONOTONIC_CLOCK
+#define TS_NANOSEC     1L
 #define TS_MICROSEC 1000L * TS_NANOSEC
 #define TS_MILLISEC 1000L * TS_MICROSEC
 #define TS_SEC      1000L * TS_MILLISEC
@@ -502,7 +502,7 @@ parse_sixel_incremental_display(void)
     int dirty_col = ((s_context.col * s_graphic->pixw)
 		     + (s_graphic->charcol * FontWidth(s_screen)));
 
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#ifdef _POSIX_MONOTONIC_CLOCK
     static struct timespec next_refresh =
     {
 	0, 0
