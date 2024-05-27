@@ -265,7 +265,7 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
 	   context->aspect_horizontal,
 	   graphic->pixw,
 	   graphic->pixh));
-#if 1
+#if 0
     /* FIXME: Aspect Ratio is buggy, so we'll just force it off */
     graphic->pixw = 1;
     graphic->pixh = 1;
@@ -431,7 +431,7 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
 	if (Pmacro > 9 || Pmacro < 0) {
 	    Pmacro = 0;
 	}
-	s_context.aspect_vertical = vertical[Pmacro];
+	s_context.aspect_vertical   = vertical[Pmacro];
 	s_context.aspect_horizontal = 100;
 
 	/* Ps2: Background  0 or 2 = opaque, 1 = transparent */
@@ -611,53 +611,61 @@ parse_sixel_char(char cp)
 	}
 
 	switch (s_raster_state) {
-
-#define GetAspect(state) \
-	case state: \
-	    if (s_raster_params[state] <= 0) { \
-		s_raster_params[state] = 1; \
-	    } else if (s_raster_params[state] > MaxSParm) { \
-		s_raster_params[state] = MaxSParm; \
-	    } \
-	    break
-
-	    GetAspect(s_GETTINGPAN);
-	    GetAspect(s_GETTINGPAD);
-
-#define GetExtent(state, field) \
-	case state: \
-	    if (s_raster_params[state] <= 0) { \
-		s_raster_params[state] = 1; \
-	    } \
-	    if (s_raster_params[state] > s_graphic->max_ ## field) { \
-		TRACE(("DATA_ERROR: raster " #field " %d > max %d\n", \
-		       s_raster_params[state], s_graphic->max_ ## field)); \
-		s_raster_state = s_NOTRASTER; \
-		return finished_parsing(s_xw, s_graphic); \
-	    } \
-	    s_context.declared_ ## field = s_raster_params[state]; \
-	    break
-
-	    GetExtent(s_GETTINGV, height);
-	    GetExtent(s_GETTINGH, width);
-
-	case s_NOTCOLORING:
-	case s_RASTERDONE:
-	    /* ignore unreachable states */
+	case s_GETTINGPAN:	/* Pn1: Pixel Aspect Numerator: 1 to inf */
+	    if (s_raster_params[s_GETTINGPAN] <= 0) { 	/* -1 means omitted */
+		s_raster_params[s_GETTINGPAN] = 1;	/* Default */
+	    }
+	    s_context.aspect_vertical = s_raster_params[s_GETTINGPAN];
+	    update_sixel_aspect(&s_context, s_graphic);
 	    break;
+	case s_GETTINGPAD:	/* Pn2: Pixel Aspect Denominator: 1 to inf */
+	    if (s_raster_params[s_GETTINGPAD] <= 0) {
+		s_raster_params[s_GETTINGPAD] = 1;
+	    }
+	    s_context.aspect_horizontal = s_raster_params[s_GETTINGPAD];
+	    update_sixel_aspect(&s_context, s_graphic);
+	    break;
+
+	case s_GETTINGH:	/* Pn3: Horizontal extent: 1 to inf */
+	    if (s_raster_params[s_GETTINGH] <= 0) {
+		s_raster_params[s_GETTINGH] = 1;
+	    }
+	    if (s_raster_params[s_GETTINGH] > s_graphic->max_width) {
+		TRACE(("DATA_NOTICE: truncating raster width %d to max_width of %d\n",
+		       s_raster_params[s_GETTINGH], s_graphic->max_width));
+		s_raster_params[s_GETTINGH] = s_graphic->max_width;
+	    }
+	    s_context.declared_width = s_raster_params[s_GETTINGH];
+	    break;
+	case s_GETTINGV:	/* Pn4: Vertical extent: 1 to inf */
+	    if (s_raster_params[s_GETTINGV] <= 0) {
+		s_raster_params[s_GETTINGV] = 1;
+	    }
+	    if (s_raster_params[s_GETTINGV] > s_graphic->max_height) {
+		TRACE(("DATA_NOTICE: truncating raster height %d to max_height of %d\n",
+		       s_raster_params[s_GETTINGV], s_graphic->max_height));
+		s_raster_params[s_GETTINGV] = s_graphic->max_height;
+	    }
+	    s_context.declared_height = s_raster_params[s_GETTINGV];
+	    break;
+
+#define NEVERHAPPENS(type, state)		\
+	case state: \
+	    TRACE(("DATA_ERROR: impossible state " #state " (%d) occurred.\n" \
+		   "\t next char %c (%d)\n", s_ ## type ## _state, cp, cp)); \
+	    s_ ## type ## _state = 0; \
+	    return finished_parsing(s_xw, s_graphic); \
+	    break
+
+	NEVERHAPPENS(raster, s_RASTERDONE);
+	NEVERHAPPENS(raster, s_NOTRASTER);
+
 	default:
 	    TRACE(("DATA_ERROR: raster operator ('\"') with too many parameters (%d)\n, next char %c (%d)\n",
 		   s_raster_state, cp, cp));
 	    s_raster_state = s_NOTRASTER;
 	    return finished_parsing(s_xw, s_graphic);
 	}
-
-	/* Save data from Raster Attributes */
-	s_context.aspect_vertical   = s_raster_params[s_GETTINGPAN];
-	s_context.aspect_horizontal = s_raster_params[s_GETTINGPAD];
-	update_sixel_aspect(&s_context, s_graphic);
-	s_context.declared_width    = s_raster_params[s_GETTINGV];
-	s_context.declared_height   = s_raster_params[s_GETTINGH];
 
 	s_accumulator = -1;
 	s_raster_state++;
