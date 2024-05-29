@@ -366,7 +366,7 @@ copy_overlapping_area(Graphic *graphic, int src_ul_x, int src_ul_y,
 	    if (dst_x < 0 || dst_x >= (int) graphic->actual_width * graphic->pixw)
 		continue;
 
-	    if (src_x < 0 || src_x >= (int) graphic->actual_width  * graphic->pixw||
+	    if (src_x < 0 || src_x >= (int) graphic->actual_width  * graphic->pixw ||
 		src_y < 0 || src_y >= (int) graphic->actual_height * graphic->pixh)
 		color = (RegisterNum) default_color;
 	    else
@@ -944,8 +944,8 @@ refresh_graphic(TScreen const *screen,
     int const ph = graphic->pixh;
     int const graph_x = graphic->charcol * FontWidth(screen);
     int const graph_y = graphic->charrow * FontHeight(screen);
-    int const graph_w = graphic->actual_width;
-    int const graph_h = graphic->actual_height;
+    int const graph_w = graphic->actual_width * graphic->pixw;
+    int const graph_h = graphic->actual_height * graphic->pixh;
     int const mw = graphic->max_width;
 
     int r, c;
@@ -968,48 +968,50 @@ refresh_graphic(TScreen const *screen,
 
     TRACE(("refresh pixmap starts at %d,%d\n", refresh_x, refresh_y));
 
-    for (r = 0, pmy = graph_y; r < graph_h; r++, pmy += ph) {
+    for (r = 0, pmy = graph_y; r < graph_h; r++) {
 	int pmx, buffer_y, pixel_y;
 
-	if (pmy + ph - 1 < draw_y)
-	    continue;
-	if (pmy > draw_y + draw_h - 1)
-	    break;
-
-	if (pmy < draw_y ||
-	    pmy < refresh_y ||
-	    pmy > refresh_y + refresh_h - 1) {
-	    if_TRACE(out_of_range++);
-	    continue;
-	}
-	pixel_y = r * mw;
-	buffer_y = (pmy - refresh_y) * refresh_w;
-
-	for (c = 0, pmx = graph_x; c < graph_w; c++, pmx += pw) {
-
-	    if (pmx + pw - 1 < draw_x)
+	for (int dpmy=0; dpmy < ph; pmy++, dpmy++) {
+	    if (pmy + ph - 1 < draw_y)
 		continue;
-	    if (pmx > draw_x + draw_w - 1)
+	    if (pmy > draw_y + draw_h - 1)
 		break;
 
-	    if (pmx < draw_x ||
-		pmx < refresh_x ||
-		pmx > refresh_x + refresh_w - 1) {
+	    if (pmy < draw_y ||
+		pmy < refresh_y ||
+		pmy > refresh_y + refresh_h - 1) {
 		if_TRACE(out_of_range++);
 		continue;
 	    }
+	    pixel_y = r * mw;
+	    buffer_y = (pmy - refresh_y) * refresh_w;
 
-	    if_TRACE(total++);
-	    regnum = graphic->pixels[pixel_y + c];
-	    if (regnum == COLOR_HOLE) {
-		if_TRACE(holes++);
-	    } else {
-		buffer[buffer_y + (pmx - refresh_x)] =
-		    graphic->color_registers[regnum];
+	    for (c = 0, pmx = graph_x; c < graph_w; c++, pmx += pw) {
+
+		if (pmx + pw - 1 < draw_x)
+		    continue;
+		if (pmx > draw_x + draw_w - 1)
+		    break;
+
+		if (pmx < draw_x ||
+		    pmx < refresh_x ||
+		    pmx > refresh_x + refresh_w - 1) {
+		    if_TRACE(out_of_range++);
+		    continue;
+		}
+
+		if_TRACE(total++);
+		regnum = graphic->pixels[pixel_y + c];
+		if (regnum == COLOR_HOLE) {
+		    if_TRACE(holes++);
+		} else {
+		    buffer[buffer_y + (pmx - refresh_x)] =
+			graphic->color_registers[regnum];
+		}
 	    }
 	}
     }
-
+    
     TRACE(("done refreshing graphic: %d of %d refreshed pixels were holes; %d were out of pixmap range\n",
 	   holes, total, out_of_range));
 }
@@ -1188,7 +1190,7 @@ dump_graphic(Graphic const *graphic)
 #ifdef DUMP_BITMAP
     TRACE(("graphic pixels:\n"));
     for (r = 0; r < graphic->actual_height * graphic->pixh; r++) {
-	for (c = 0; c < graphic->actual_width * graphic->pixw; c++) {
+	for (c = 0; c < graphic->actual_width; c++) {
 	    color = graphic->pixels[r * graphic->max_width + c];
 	    if (color == COLOR_HOLE) {
 		TRACE(("?"));
@@ -1445,7 +1447,7 @@ RefreshClipped(TScreen *screen,
 	Graphic *graphic = ordered_graphics[jj];
 	int draw_x = graphic->charcol * FontWidth(screen);
 	int draw_y = graphic->charrow * FontHeight(screen);
-	int draw_w = graphic->actual_width * graphic->pixw;
+	int draw_w = graphic->actual_width  * graphic->pixw;
 	int draw_h = graphic->actual_height * graphic->pixh;
 
 	if (screen->whichBuf != 0) {
