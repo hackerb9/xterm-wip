@@ -1235,12 +1235,12 @@ erase_graphic(Graphic *graphic, int x, int y, int w, int h)
 
     TRACE(("erasing graphic %d,%d %dx%d\n", x, y, w, h));
 
-    for (r = 0; r < graphic->actual_height * graphic->pixh; r++) {
+    for (r = 0; r < graphic->actual_height; r++) {
 	if (rbase >= r_min
 	    && rbase <= r_max) {
 	    int c;
 	    int cbase = 0;
-	    for (c = 0; c < graphic->actual_width * graphic->pixw; c++) {
+	    for (c = 0; c < graphic->actual_width; c++) {
 		if (cbase >= c_min
 		    && cbase <= c_max) {
 		    const int cell = r * graphic->max_width + c;
