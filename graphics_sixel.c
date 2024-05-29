@@ -309,11 +309,11 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	    new_col = graphic->charcol;
 	}
 
-	TRACE(("setting text position after %dx%d\t%.1f start (%d %d): cursor (%d,%d)\n",
-	       graphic->actual_width * graphic->pixw,
-	       graphic->actual_height * graphic->pixh,
+	TRACE(("setting text position after %dx%d (pixw=%d, pixh=%d)\t%.1f start (%d %d): cursor (%d,%d)\n",
+	       graphic->actual_width, graphic->actual_height,
+	       graphic->pixw, graphic->pixh,
 	       ((double) graphic->charrow
-		+ ((double) (graphic->actual_height * graphic->pixh)
+		+ ((double) (graphic->actual_height)
 		   / (double) FontHeight(screen))),
 	       graphic->charrow,
 	       graphic->charcol,
