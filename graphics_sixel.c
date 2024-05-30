@@ -391,15 +391,11 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
 	break;
     }
 
-    s_context.declared_width = 0;
-    s_context.declared_height = 0;
-
-    s_context.row = 0;
-    s_context.col = 0;
-
-    s_prev_row = 0;
-    s_prev_col = 0;
-
+    s_context.declared_width = s_context.declared_height = 0;
+    s_context.row = s_context.col = 0;
+    s_prev_row = s_prev_col = 0;
+    s_color_state = s_raster_state = 0;
+    
     /* default isn't white on the VT240, but not sure what it is */
     s_context.current_register = 3;	/* FIXME: using green, but not sure what it should be */
 
