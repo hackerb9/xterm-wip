@@ -91,10 +91,10 @@ static RegisterNum s_Pregister;
  */
 static enum {
     s_NOTRASTER
-    ,s_GETTINGPAN		/* Pixel aspect ratio numerator */
-    ,s_GETTINGPAD		/* Pixel aspect ratio denominator */
-    ,s_GETTINGV			/* Pixel vertical extent */
-    ,s_GETTINGH			/* Pixel horizontal extent */
+    ,s_GETTINGPAN	/* Pixel Aspect ratio Numerator - vertical stretch */
+    ,s_GETTINGPAD	/* Pixel Aspect ratio Denominator - horizontal */
+    ,s_GETTINGHORIZ	/* Geometry horizontal extent (width) */
+    ,s_GETTINGVERT	/* Geometry vertical extent (height) */
     ,s_RASTERDONE
 } s_raster_state;
 static int s_raster_params[s_RASTERDONE + 1];
@@ -211,6 +211,7 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
        it nor explicitly ignore DECGRA after sixels have started. We probably
        should allow for it as that is how genuine DEC hardware behaved. */
 
+#if 0
     TRACE(("sixel updating pixel aspect (v:h): %d:%d\n",
 	   context->aspect_vertical, context->aspect_horizontal));
 
@@ -265,10 +266,12 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
 	   context->aspect_horizontal,
 	   graphic->pixw,
 	   graphic->pixh));
-#if 0
     /* FIXME: Aspect Ratio is buggy, so we'll just force it off */
     graphic->pixw = 1;
     graphic->pixh = 1;
+#else
+    graphic->pixw = context->aspect_horizontal;
+    graphic->pixh = context->aspect_vertical;
 #endif
 }
 
@@ -287,13 +290,14 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	int new_row, new_col;
 
 	/* Note: XTerm follows the VT340 behavior in text cursor placement
-	 * for nearly all sixel images. It differs in the few places where
-	 * TWO newlines would have been necessary for subsequent text to not
-	 * overwrite an image. XTerm always requires only a single newline.
+	 * for nearly all sixel images.
 	 *
-	 * Emulating the VT340's quirky and undocumented behavior is of
-	 * dubious value. The heuristic DEC used has nice properties, but
-	 * only applies if the font is exactly 20 pixels high.
+	 * It differs in the few places where TWO newlines would have been
+	 * necessary for subsequent text to not overwrite an image. XTerm
+	 * always requires only a single newline. Emulating the VT340's
+	 * quirky and undocumented behavior is of dubious value. The
+	 * heuristic DEC used has nice properties, but only applies if the
+	 * font is exactly 20 pixels high.
 	 */
 	new_row = (graphic->charrow - 1
 		   + (((graphic->actual_height * graphic->pixh)
@@ -610,43 +614,36 @@ parse_sixel_char(char cp)
 	    s_raster_params[s_raster_state] = s_accumulator;
 	}
 
+	if (s_raster_params[s_raster_state] <= 0) {	/* -1 means omitted */
+	    s_raster_params[s_raster_state] = 1;	/* Default */
+	}
+
 	switch (s_raster_state) {
-	case s_GETTINGPAN:	/* Pn1: Pixel Aspect Numerator: 1 to inf */
-	    if (s_raster_params[s_GETTINGPAN] <= 0) { 	/* -1 means omitted */
-		s_raster_params[s_GETTINGPAN] = 1;	/* Default */
-	    }
-	    s_context.aspect_vertical = s_raster_params[s_GETTINGPAN];
+	case s_GETTINGPAN:	/* Pn1: Pixel Aspect Numerator: 1 to MAXINT */
+	    s_context.aspect_vertical   = s_raster_params[s_GETTINGPAN];
 	    update_sixel_aspect(&s_context, s_graphic);
 	    break;
-	case s_GETTINGPAD:	/* Pn2: Pixel Aspect Denominator: 1 to inf */
-	    if (s_raster_params[s_GETTINGPAD] <= 0) {
-		s_raster_params[s_GETTINGPAD] = 1;
-	    }
+	case s_GETTINGPAD:	/* Pn2: Pixel Aspect Denominator: 1 to MAXINT */
 	    s_context.aspect_horizontal = s_raster_params[s_GETTINGPAD];
 	    update_sixel_aspect(&s_context, s_graphic);
 	    break;
-
-	case s_GETTINGH:	/* Pn3: Horizontal extent: 1 to inf */
-	    if (s_raster_params[s_GETTINGH] <= 0) {
-		s_raster_params[s_GETTINGH] = 1;
+	case s_GETTINGHORIZ:	/* Pn3: Horizontal extent: 1 to MAXINT */
+	    if (s_raster_params[s_GETTINGHORIZ] > s_graphic->max_width) {
+		TRACE(("DATA_WARNING: "
+		       "truncating raster width %d to max_width of %d\n",
+		       s_raster_params[s_GETTINGHORIZ], s_graphic->max_width));
+		s_raster_params[s_GETTINGHORIZ] = s_graphic->max_width;
 	    }
-	    if (s_raster_params[s_GETTINGH] > s_graphic->max_width) {
-		TRACE(("DATA_NOTICE: truncating raster width %d to max_width of %d\n",
-		       s_raster_params[s_GETTINGH], s_graphic->max_width));
-		s_raster_params[s_GETTINGH] = s_graphic->max_width;
-	    }
-	    s_context.declared_width = s_raster_params[s_GETTINGH];
+	    s_context.declared_width = s_raster_params[s_GETTINGHORIZ];
 	    break;
-	case s_GETTINGV:	/* Pn4: Vertical extent: 1 to inf */
-	    if (s_raster_params[s_GETTINGV] <= 0) {
-		s_raster_params[s_GETTINGV] = 1;
+	case s_GETTINGVERT:	/* Pn4: Vertical extent: 1 to MAXINT */
+	    if (s_raster_params[s_GETTINGVERT] > s_graphic->max_height) {
+		TRACE(("DATA_WARNING: "
+		       "truncating raster height %d to max_height of %d\n",
+		       s_raster_params[s_GETTINGVERT], s_graphic->max_height));
+		s_raster_params[s_GETTINGVERT] = s_graphic->max_height;
 	    }
-	    if (s_raster_params[s_GETTINGV] > s_graphic->max_height) {
-		TRACE(("DATA_NOTICE: truncating raster height %d to max_height of %d\n",
-		       s_raster_params[s_GETTINGV], s_graphic->max_height));
-		s_raster_params[s_GETTINGV] = s_graphic->max_height;
-	    }
-	    s_context.declared_height = s_raster_params[s_GETTINGV];
+	    s_context.declared_height = s_raster_params[s_GETTINGVERT];
 	    break;
 
 #define NEVERHAPPENS(type, state)		\
@@ -878,8 +875,8 @@ parse_sixel_char(char cp)
 	s_accumulator = -1;
 	s_raster_params[s_GETTINGPAN] = 1;	/* Default if not specified */
 	s_raster_params[s_GETTINGPAD] = 1;	/* Default if not specified */
-	s_raster_params[s_GETTINGH] = 0;	/* Default if not specified */
-	s_raster_params[s_GETTINGV] = 0;	/* Default if not specified */
+	s_raster_params[s_GETTINGHORIZ] = 0;	/* Default if not specified */
+	s_raster_params[s_GETTINGVERT] = 0;	/* Default if not specified */
     } else {
 	TRACE(("DATA_ERROR: skipping unknown sixel command %04x (%c)\n",
 	       (int) cp, cp));
