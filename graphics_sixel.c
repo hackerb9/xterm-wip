@@ -261,10 +261,18 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
     /* FIXME: Aspect Ratio is buggy, so we'll just force it off */
     graphic->pixw = 1;
     graphic->pixh = 1;
-#endif
+
+#else    
+
+    /* VT340 approximates aspect ratio, so we will too, for now. */
+    int min = (s_context.aspect_vertical < s_context.aspect_horizontal)?
+	s_context.aspect_vertical:s_context.aspect_horizontal;
+    s_context.aspect_vertical   = s_context.aspect_vertical / min;
+    s_context.aspect_horizontal = s_context.aspect_horizontal / min;
 
     graphic->pixw = context->aspect_horizontal;
     graphic->pixh = context->aspect_vertical;
+#endif
 
     TRACE(("sixel aspect ratio: an=%d ad=%d -> pixw=%d pixh=%d\n",
 	   context->aspect_vertical,
@@ -433,8 +441,6 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
 	if (Pmacro > 9 || Pmacro < 0) {
 	    Pmacro = 0;
 	}
-	s_context.aspect_vertical   = vertical[Pmacro];
-	s_context.aspect_horizontal = 100;
 
 	/* Ps2: Background  0 or 2 = opaque, 1 = transparent */
 	if (Pbgmode == 1) {
