@@ -211,7 +211,6 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
        it nor explicitly ignore DECGRA after sixels have started. We probably
        should allow for it as that is how genuine DEC hardware behaved. */
 
-#if 0
     TRACE(("sixel updating pixel aspect (v:h): %d:%d\n",
 	   context->aspect_vertical, context->aspect_horizontal));
 
@@ -244,6 +243,7 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
      * The VT340 appears to have no practical limit. Even ratios over 480:1
      * -- where each pixel would exceed the screen height -- are allowed.
      */
+#if 0
     if (context->aspect_vertical > (10 * context->aspect_horizontal))
 	context->aspect_vertical = (10 * context->aspect_horizontal);
 
@@ -258,6 +258,11 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
 	by10(context->aspect_horizontal);
     }
 
+    /* FIXME: Aspect Ratio is buggy, so we'll just force it off */
+    graphic->pixw = 1;
+    graphic->pixh = 1;
+#endif
+
     graphic->pixw = context->aspect_horizontal;
     graphic->pixh = context->aspect_vertical;
 
@@ -266,13 +271,6 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
 	   context->aspect_horizontal,
 	   graphic->pixw,
 	   graphic->pixh));
-    /* FIXME: Aspect Ratio is buggy, so we'll just force it off */
-    graphic->pixw = 1;
-    graphic->pixh = 1;
-#else
-    graphic->pixw = context->aspect_horizontal;
-    graphic->pixh = context->aspect_vertical;
-#endif
 }
 
 static int
