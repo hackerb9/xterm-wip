@@ -437,6 +437,8 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
 	if (Pmacro > 9 || Pmacro < 0) {
 	    Pmacro = 0;
 	}
+	s_context.aspect_vertical = vertical[Pmacro];
+	s_context.aspect_horizontal = 100;
 
 	/* Ps2: Background  0 or 2 = opaque, 1 = transparent */
 	if (Pbgmode == 1) {
@@ -451,7 +453,7 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
 	/* Ps3: horizontal grid size in decipoints (1/720 inch) */
 	/*
 	 * Note: The CRT of the VT340 had a grid (distance between pixels)
-	 * of 10/720th of an inch (0.0195 cm).
+	 * of 10/720th of an inch (72dpi == 0.0195 cm).
 	 */
 	if (Phgrid <= 0) {
 	    Phgrid = 50;	/* Default is 50 decipoints (144dpi) */
