@@ -294,6 +294,7 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 
     if (SixelScrolling(xw)) {
 	int new_row, new_col;
+	double row_delta = 0.0, col_delta = 0.0;
 
 	/* Note: XTerm follows the VT340 behavior in text cursor placement
 	 * for nearly all sixel images.
@@ -305,36 +306,52 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	 * heuristic DEC used has nice properties, but only applies if the
 	 * font is exactly 20 pixels high.
 	 */
-	new_row = (graphic->charrow - 1
-		   + (((graphic->actual_height * graphic->pixh)
-		       + FontHeight(screen) - 1)
-		      / FontHeight(screen)));
-
-	if (screen->sixel_scrolls_right) {
-	    new_col = (graphic->charcol
-		       + (((graphic->actual_width * graphic->pixw)
-			   + FontWidth(screen) - 1)
-			  / FontWidth(screen)));
-	} else {
-	    new_col = graphic->charcol;
+	new_row = graphic->charrow;
+	if (graphic->actual_height > 0) {
+	    row_delta = graphic->actual_height * graphic->pixh;
+	    row_delta -= 1;	/* no increment when gfxheight == fontheight */ 
+	    row_delta /= FontHeight(screen);
+	    new_row += row_delta;
 	}
 
-	TRACE(("setting text position after %dx%d (pixw=%d, pixh=%d)\t%.1f start (%d %d): cursor (%d,%d)\n",
+	/* Normally, text cursor column does not change. */
+	new_col = graphic->charcol;
+
+	/* No DEC terminals did this, but it is a useful option */
+	if (screen->sixel_scrolls_right) {
+	    if (graphic->actual_width > 0) {
+		col_delta = graphic->actual_width * graphic->pixw;
+		col_delta -= 1;	/* no increment when gfxwidth == fontwidth */ 
+		col_delta /= FontWidth(screen);
+		new_col += col_delta;
+	    }
+
+	    if (new_col > screen->rgt_marg) {
+		TRACE(("sixel: scrolling right exceeds right margin\n"));
+#if 0
+/* FIXME: Wrapping to the next line seems mistaken. sixel_scrolls_right is
+ * for positioning text (or more graphics) to the right of the graphic we
+ * just displayed. Wrapping could cause the screen to scroll up.
+ * Probably, we should just delete this. */ 
+		new_col = screen->lft_marg;
+		new_row++;
+#else
+		/* Clamp to the margin. The user application can check if the
+		 * cursor is in the last column and send a newline if they
+		 * wish. */
+		new_col = screen->rgt_marg;
+#endif
+		TRACE(("\t overriding to row=%d col=%d\n", new_row, new_col));
+	    }
+	}
+
+	TRACE(("sixel: setting text position after %dx%d (pixw=%d, pixh=%d)\n"
+	       "\t (row,col) delta: (%.1f, %.1f),\t old pos (%d %d),\t new: (%d,%d)\n",
 	       graphic->actual_width, graphic->actual_height,
 	       graphic->pixw, graphic->pixh,
-	       ((double) graphic->charrow
-		+ ((double) (graphic->actual_height)
-		   / (double) FontHeight(screen))),
-	       graphic->charrow,
-	       graphic->charcol,
+	       row_delta, col_delta,
+	       graphic->charrow, graphic->charcol,
 	       new_row, new_col));
-
-	if (new_col > screen->rgt_marg) {
-	    new_col = screen->lft_marg;
-	    new_row++;
-	    TRACE(("column past left margin, overriding to row=%d col=%d\n",
-		   new_row, new_col));
-	}
 
 	while (new_row > screen->bot_marg) {
 	    xtermScroll(xw, 1);
@@ -344,13 +361,13 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	}
 
 	if (new_row < 0) {
-	    /* FIXME: this was triggering, now it isn't */
-	    TRACE(("new row is going to be negative (%d); skipping position update!",
+	    TRACE(("WARNING: new sixel row was going to be negative (%d)!"
+		   "This should never happen. Please send a bugreport.",
 		   new_row));
-	} else {
-	    set_cur_row(screen, new_row);
-	    set_cur_col(screen, new_col <= screen->rgt_marg ? new_col : screen->rgt_marg);
+	    new_row = 0;
 	}
+	set_cur_row(screen, new_row);
+	set_cur_col(screen, new_col <= screen->rgt_marg ? new_col : screen->rgt_marg);
     }
 
     graphic->dirty = True;
@@ -569,8 +586,8 @@ parse_sixel_char(char cp)
 	/* Not space or digit, so it must be the sixel to show */
 	if (cp >= 0x3F && cp <= 0x7E) {
 	    int sixel = cp - 0x3f;
-	    TRACE(("sixel repeat operator: sixel=%d (%c), count=%d\n",
-		   sixel, (char) cp, s_accumulator));
+	    TRACE(("sixel repeat operator: count=%d, sixel=%x ('%c')\n",
+		   s_accumulator, sixel, (char) cp));
 	    if (s_accumulator <= 0) {
 		/* If the repeat count is zero or omitted, it is treated as 1 */
 		s_accumulator = 1;
@@ -813,7 +830,7 @@ parse_sixel_char(char cp)
 
     if (cp >= 0x3f && cp <= 0x7e) {
 	int sixel = cp - 0x3f;
-	TRACE(("sixel=%x (%c)\n", sixel, (char) cp));
+	TRACE(("sixel=%x ('%c')\n", sixel, (char) cp));
 	if (!s_graphic->valid) {
 	    init_sixel_background(s_graphic, &s_context);
 	    s_graphic->valid = True;
@@ -830,11 +847,11 @@ parse_sixel_char(char cp)
 	    parse_sixel_incremental_display();
     } else if (cp == '$') {	/* DECGCR */
 	/* ignore DECCRNLM in sixel mode */
-	TRACE(("sixel CR\n"));
+	TRACE(("sixel Graphic CR\n"));
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
 	int scroll_lines;
-	TRACE(("sixel NL: "));
+	TRACE(("sixel Graphic NL: "));
 	scroll_lines = 0;
 	while (s_graphic->charrow - scroll_lines +
 	       (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
