@@ -570,14 +570,12 @@ gnl_scroll()
     while (s_graphic->charrow - scroll_lines +
 	   (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
 	     * s_graphic->pixh
-	     + FontHeight(s_screen) - 1)
-	    / FontHeight(s_screen)) > s_screen->bot_marg) {
+	     + FontHeight(s_screen) - 1))
+	   > FontHeight(s_screen) * s_screen->bot_marg) {
 	/* FIXME: Why scroll_lines++ instead of calculating it? */ 
 	scroll_lines++;
     }
-    s_context.col = 0;
-    s_context.row += 6;
-    TRACE2(("new row location is %u\n", s_context.row));
+    TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     /* If we hit the bottom margin on the graphics page (well, we just use
      * the text margin for now), the behavior is to either scroll or to
      * discard the remainder of the graphic depending on this setting.
@@ -892,6 +890,8 @@ parse_sixel_char(char cp)
     } else if (cp == '-') {	/* DECGNL */
 	TRACE(("sixel Graphic NL: "));
 	gnl_scroll();	/* FIXME: merge incremental & non-incremental. */ 
+	s_context.col = 0;
+	s_context.row += 6;
     } else if (cp == '!') {	/* DECGRI */
 	s_repeating = True;
 	s_accumulator = -1;
