@@ -567,10 +567,11 @@ gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
     int scroll_lines = 0;
-    while (s_graphic->charrow - scroll_lines +
-	   (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
-	     * s_graphic->pixh
-	     + FontHeight(s_screen) - 1))
+    while (s_graphic->charrow
+	   - scroll_lines
+	   + s_context.row * s_graphic->pixh
+	   + Min(6, s_graphic->actual_height - s_context.row) * s_graphic->pixh
+	   + FontHeight(s_screen) - 1
 	   > FontHeight(s_screen) * s_screen->bot_marg) {
 	/* FIXME: Why scroll_lines++ instead of calculating it? */ 
 	scroll_lines++;
@@ -889,9 +890,9 @@ parse_sixel_char(char cp)
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
 	TRACE(("sixel Graphic NL: "));
-	gnl_scroll();	/* FIXME: merge incremental & non-incremental. */ 
 	s_context.col = 0;
 	s_context.row += 6;
+	gnl_scroll();	/* FIXME: merge incremental & non-incremental. */ 
     } else if (cp == '!') {	/* DECGRI */
 	s_repeating = True;
 	s_accumulator = -1;
