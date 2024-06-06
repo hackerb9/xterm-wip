@@ -559,6 +559,47 @@ parse_sixel_incremental_display(void)
     s_prev_col = dirty_col;
 }
 
+/* Helper for parse_sixel_char()
+ * Move graphic cursor down and maybe scroll the terminal.
+ */
+static void
+gnl_scroll()
+{
+    /* FIXME: this algorithm is not correct. */ 
+    int scroll_lines = 0;
+    while (s_graphic->charrow - scroll_lines +
+	   (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
+	     * s_graphic->pixh
+	     + FontHeight(s_screen) - 1)
+	    / FontHeight(s_screen)) > s_screen->bot_marg) {
+	/* FIXME: Why scroll_lines++ instead of calculating it? */ 
+	scroll_lines++;
+    }
+    s_context.col = 0;
+    s_context.row += 6;
+    TRACE2(("new row location is %u\n", s_context.row));
+    /* If we hit the bottom margin on the graphics page (well, we just use
+     * the text margin for now), the behavior is to either scroll or to
+     * discard the remainder of the graphic depending on this setting.
+     */
+    if (scroll_lines > 0) {
+	if (SixelScrolling(s_xw)) {
+	    xtermScroll(s_xw, scroll_lines);
+	    if (s_screen->incremental_graphics) {
+		FlushScroll(s_xw);
+		XSync(s_screen->display, False);
+		s_graphic->dirty = True;
+		refresh_modified_displayed_graphics(s_xw);
+	    }
+	    TRACE(("graphic scrolled the screen %d lines. s_screen->scroll_amt=%d s_screen->topline=%d, now starting row is %d\n",
+		   scroll_lines,
+		   s_screen->scroll_amt,
+		   s_screen->topline,
+		   s_graphic->charrow));
+	}
+    }
+}
+    
 int
 parse_sixel_char(char cp)
 {
@@ -850,40 +891,7 @@ parse_sixel_char(char cp)
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
 	TRACE(("sixel Graphic NL: "));
-	/* FIXME: this algorithm is not correct. */ 
-	/* FIXME: merge incremental & non-incremental. */ 
-	int scroll_lines = 0;
-	while (s_graphic->charrow - scroll_lines +
-	       (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
-		 * s_graphic->pixh
-		 + FontHeight(s_screen) - 1)
-		/ FontHeight(s_screen)) > s_screen->bot_marg) {
-	    /* FIXME: Why scroll_lines++ instead of calculating it? */ 
-	    scroll_lines++;
-	}
-	s_context.col = 0;
-	s_context.row += 6;
-	TRACE2(("new row location is %u\n", s_context.row));
-	/* If we hit the bottom margin on the graphics page (well, we just use
-	 * the text margin for now), the behavior is to either scroll or to
-	 * discard the remainder of the graphic depending on this setting.
-	 */
-	if (scroll_lines > 0) {
-	    if (SixelScrolling(s_xw)) {
-		xtermScroll(s_xw, scroll_lines);
-		if (s_screen->incremental_graphics) {
-		    FlushScroll(s_xw);
-		    XSync(s_screen->display, False);
-		    s_graphic->dirty = True;
-		    refresh_modified_displayed_graphics(s_xw);
-		}
-		TRACE(("graphic scrolled the screen %d lines. s_screen->scroll_amt=%d s_screen->topline=%d, now starting row is %d\n",
-		       scroll_lines,
-		       s_screen->scroll_amt,
-		       s_screen->topline,
-		       s_graphic->charrow));
-	    }
-	}
+	gnl_scroll();	/* FIXME: merge incremental & non-incremental. */ 
     } else if (cp == '!') {	/* DECGRI */
 	s_repeating = True;
 	s_accumulator = -1;
@@ -904,6 +912,7 @@ parse_sixel_char(char cp)
 
     return 0;
 }
+
 
 /* Just like finished_parsing, but called from do_dcs in misc.c */
 int
