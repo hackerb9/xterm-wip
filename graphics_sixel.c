@@ -293,9 +293,6 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	FlushScroll(xw);
 
     if (SixelScrolling(xw)) {
-	int new_row, new_col;
-	double row_delta = 0.0, col_delta = 0.0;
-
 	/* Note: XTerm follows the VT340 behavior in text cursor placement
 	 * for nearly all sixel images.
 	 *
@@ -306,6 +303,9 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	 * heuristic DEC used has nice properties, but only applies if the
 	 * font is exactly 20 pixels high.
 	 */
+	int new_row, new_col;
+	double row_delta = 0.0, col_delta = 0.0;
+
 	new_row = graphic->charrow;
 	if (graphic->actual_height > 0) {
 	    row_delta = graphic->actual_height * graphic->pixh;
@@ -336,9 +336,8 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 		new_col = screen->lft_marg;
 		new_row++;
 #else
-		/* Clamp to the margin. The user application can check if the
-		 * cursor is in the last column and send a newline if they
-		 * wish. */
+		/* Clamp to the margin. The user app can check if the cursor
+		 * is in the last column and send a newline if they wish. */
 		new_col = screen->rgt_marg;
 #endif
 		TRACE(("\t overriding to row=%d col=%d\n", new_row, new_col));
@@ -850,14 +849,16 @@ parse_sixel_char(char cp)
 	TRACE(("sixel Graphic CR\n"));
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
-	int scroll_lines;
 	TRACE(("sixel Graphic NL: "));
-	scroll_lines = 0;
+	/* FIXME: this algorithm is not correct. */ 
+	/* /\* FIXME: merge incremental & non-incremental. *\/  */
+	/* int scroll_lines = 0; */
 	while (s_graphic->charrow - scroll_lines +
 	       (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
 		 * s_graphic->pixh
 		 + FontHeight(s_screen) - 1)
 		/ FontHeight(s_screen)) > s_screen->bot_marg) {
+	    /* FIXME: Why scroll_lines++ instead of calculating it? */ 
 	    scroll_lines++;
 	}
 	s_context.col = 0;
