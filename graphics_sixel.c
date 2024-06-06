@@ -567,11 +567,17 @@ gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
     int scroll_lines = 0;
-    while (s_graphic->charrow - scroll_lines +
-	   (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
-	     * s_graphic->pixh
-	     + FontHeight(s_screen) - 1)
-	    / FontHeight(s_screen)) > s_screen->bot_marg) {
+    while (
+	( s_context.row * s_graphic->pixh
+	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh
+	  + FontHeight(s_screen)
+	  - 1 )
+	>
+	( FontHeight(s_screen)
+	  * (s_screen->bot_marg
+	     + scroll_lines
+	     - s_graphic->charrow))
+	) {
 	/* FIXME: Why scroll_lines++ instead of calculating it? */ 
 	scroll_lines++;
     }
