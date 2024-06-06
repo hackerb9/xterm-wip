@@ -851,8 +851,8 @@ parse_sixel_char(char cp)
     } else if (cp == '-') {	/* DECGNL */
 	TRACE(("sixel Graphic NL: "));
 	/* FIXME: this algorithm is not correct. */ 
-	/* /\* FIXME: merge incremental & non-incremental. *\/  */
-	/* int scroll_lines = 0; */
+	/* FIXME: merge incremental & non-incremental. */ 
+	int scroll_lines = 0;
 	while (s_graphic->charrow - scroll_lines +
 	       (((s_context.row + Min(6, s_graphic->actual_height - s_context.row))
 		 * s_graphic->pixh
