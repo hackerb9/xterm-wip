@@ -567,22 +567,6 @@ static void
 gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
-    /* int scroll_lines = 0; */
-    /* while ( */
-    /* 	( s_context.row * s_graphic->pixh */
-    /* 	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh */
-    /* 	  + FontHeight(s_screen) */
-    /* 	  - 1 ) */
-    /* 	> */
-    /* 	( FontHeight(s_screen) */
-    /* 	  * (s_screen->bot_marg */
-    /* 	     + scroll_lines */
-    /* 	     - s_graphic->charrow)) */
-    /* 	) { */
-    /* 	/\* FIXME: Why scroll_lines++ instead of calculating it? *\/  */
-    /* 	scroll_lines++; */
-    /* } */
-
     int scroll_lines = 
 	( s_context.row * s_graphic->pixh
 	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh
@@ -594,12 +578,6 @@ gnl_scroll()
 	+ 1;
     if (scroll_lines < 0)
 	scroll_lines = 0;
-
-    /* TRACE(("sixel gnl: scroll_lines=%d, scrlin = %d\n", scroll_lines, scrlin)); */
-    /* if (scroll_lines != scrlin) { */
-    /* 	TRACE(("WARNING: sixel gnl: scroll_lines is not the same as scrlin!")); */
-    /* } */
-
 
     /* If we hit the bottom margin on the graphics page (well, we just use
      * the text margin for now), the behavior is to either scroll or to
