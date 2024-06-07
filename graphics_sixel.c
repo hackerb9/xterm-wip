@@ -561,28 +561,46 @@ parse_sixel_incremental_display(void)
 
 /* Helper for parse_sixel_char()
  * Move graphic cursor down and maybe scroll the terminal.
+ * FIXME: merge incremental & non-incremental scrolling.
  */
 static void
 gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
-    int scroll_lines = 0;
-    while (
+    /* int scroll_lines = 0; */
+    /* while ( */
+    /* 	( s_context.row * s_graphic->pixh */
+    /* 	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh */
+    /* 	  + FontHeight(s_screen) */
+    /* 	  - 1 ) */
+    /* 	> */
+    /* 	( FontHeight(s_screen) */
+    /* 	  * (s_screen->bot_marg */
+    /* 	     + scroll_lines */
+    /* 	     - s_graphic->charrow)) */
+    /* 	) { */
+    /* 	/\* FIXME: Why scroll_lines++ instead of calculating it? *\/  */
+    /* 	scroll_lines++; */
+    /* } */
+
+    int scroll_lines = 
 	( s_context.row * s_graphic->pixh
 	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh
 	  + FontHeight(s_screen)
 	  - 1 )
-	>
-	( FontHeight(s_screen)
-	  * (s_screen->bot_marg
-	     + scroll_lines
-	     - s_graphic->charrow))
-	) {
-	/* FIXME: Why scroll_lines++ instead of calculating it? */ 
-	scroll_lines++;
-    }
+	/ FontHeight(s_screen)
+	+ s_graphic->charrow
+	- s_screen->bot_marg
+	+ 1;
+    if (scroll_lines < 0)
+	scroll_lines = 0;
 
-    TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
+    /* TRACE(("sixel gnl: scroll_lines=%d, scrlin = %d\n", scroll_lines, scrlin)); */
+    /* if (scroll_lines != scrlin) { */
+    /* 	TRACE(("WARNING: sixel gnl: scroll_lines is not the same as scrlin!")); */
+    /* } */
+
+
     /* If we hit the bottom margin on the graphics page (well, we just use
      * the text margin for now), the behavior is to either scroll or to
      * discard the remainder of the graphic depending on this setting.
@@ -896,9 +914,10 @@ parse_sixel_char(char cp)
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
 	TRACE(("sixel Graphic NL\n"));
-	gnl_scroll();	/* FIXME: merge incremental & non-incremental. */ 
+	gnl_scroll();
 	s_context.col = 0;
 	s_context.row += 6;
+	TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     } else if (cp == '!') {	/* DECGRI */
 	s_repeating = True;
 	s_accumulator = -1;
