@@ -567,21 +567,24 @@ static void
 gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
+    int whatisthis = s_graphic->actual_height - s_context.row;
     int scroll_lines = 
-	( s_context.row * s_graphic->pixh
-	  + Min(6, s_graphic->actual_height - s_context.row)* s_graphic->pixh
-	  + FontHeight(s_screen)
-	  - 1 )
+	(
+	    s_graphic->pixh * s_context.row
+	    + s_graphic->pixh *  Min(6, whatisthis) 
+	    - 1
+	)
 	/ FontHeight(s_screen)
 	+ s_graphic->charrow
 	- s_screen->bot_marg
-	+ 1;
+	+ 1
+	;
     if (scroll_lines < 0)
 	scroll_lines = 0;
 
     /* If we hit the bottom margin on the graphics page (well, we just use
      * the text margin for now), the behavior is to either scroll or to
-     * discard the remainder of the graphic depending on this setting.
+     * discard the remainder of the graphic depending on SixelScrolling.
      */
     if (scroll_lines > 0) {
 	if (SixelScrolling(s_xw)) {
