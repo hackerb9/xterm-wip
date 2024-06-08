@@ -897,6 +897,7 @@ parse_sixel_char(char cp)
 	TRACE(("sixel: DECGNL Graphic New Line\n"));
 	s_context.col = 0;
 	s_context.row += 6;
+	s_graphic->actual_height = Max(s_graphic->actual_height, s_context.row);
 	gnl_scroll();
 	TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     } else if (cp == '!') {	/* DECGRI */
