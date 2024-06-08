@@ -891,13 +891,13 @@ parse_sixel_char(char cp)
 	    parse_sixel_incremental_display();
     } else if (cp == '$') {	/* DECGCR */
 	/* ignore DECCRNLM in sixel mode */
-	TRACE(("sixel Graphic CR\n"));
+	TRACE(("sixel: DECGCR Graphic Carriage Return\n"));
 	s_context.col = 0;
     } else if (cp == '-') {	/* DECGNL */
-	TRACE(("sixel Graphic NL\n"));
-	gnl_scroll();
+	TRACE(("sixel: DECGNL Graphic New Line\n"));
 	s_context.col = 0;
 	s_context.row += 6;
+	gnl_scroll();
 	TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     } else if (cp == '!') {	/* DECGRI */
 	s_repeating = True;
