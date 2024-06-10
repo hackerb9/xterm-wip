@@ -158,12 +158,24 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
 	memcpy(target, source, length);
     }
 
+#if 0
+   /* FIXME:
+    * bitmap_wh must be the size of the bg or the bg will not be displayed.
+
+    * bitmap_wh must not be the size of the bg, or the cursor will be placed
+      below the background, which is incorrect.
+
+    * bitmap_wh must not be set to the size of the background because Graphic
+      objects presume the bitmap_wh should be multiplied by the aspect ratio.
+    */
     if (width > graphic->bitmap_width) {
 	graphic->bitmap_width = width;
     }
     if (height > graphic->bitmap_height) {
 	graphic->bitmap_height = height;
     }
+#endif
+
 
     graphic->color_registers_used[context->background] = True;
 }
@@ -379,8 +391,16 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 		   graphic->charrow, new_row));
 	}
 
+	/* When scrolling with no RA and opaque, fill with background color.
+	 * This is a special case for xterm because, unlike the VT340, the
+	 * graphic background and text background are not necessarily identical.
+	 */
+	if ( s_context.declared_width != 0 ||
+	     s_context.declared_width != 0 )
+	    init_sixel_background(graphic, &s_context);
+
 	if (new_row < 0) {
-	    TRACE(("WARNING: new sixel row was going to be negative (%d)!"
+	    TRACE(("WARNING: new cursor row was going to be negative (%d)!"
 		   "This should never happen. Please send a bugreport.",
 		   new_row));
 	    new_row = 0;
