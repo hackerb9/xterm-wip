@@ -119,13 +119,34 @@ static int s_raster_params[s_RASTERDONE + 1];
  *	http://odl.sysworks.biz/disk$axpdocdec023/office/dwmot126/vmsdw126/relnotes/6470pro_004.html
  */
 
+/* Given a Graphic.pixels array which is organized in rows of size max_width,
+ * clear a rectangle from (r0, c0) to (r1, c1) using color register bg.
+ * (This could be optimized further, but is good enough for now). 
+ */
 static void
-init_sixel_background(Graphic *graphic, SixelContext const *context)
+fast_clear_background(RegisterNum *pixels, unsigned max_width, RegisterNum bg,
+		      unsigned r0, unsigned c0, unsigned r1, unsigned c1)
 {
     RegisterNum *source;
     RegisterNum *target;
     size_t length;
     int r, c;
+
+    source = pixels;
+    for (c = c0 + r0*max_width; c < c1; c++) {
+	source[c] = bg;
+    }
+    target = source;
+    length = (size_t) (c1 - c0) * sizeof(*target);
+    for (r = r0+1; r < r1; r++) {
+	target += max_width;
+	memcpy(target, source, length);
+    }
+}
+
+static void
+init_sixel_background(Graphic *graphic, SixelContext const *context)
+{
     int height = context->declared_height;
     int width = context->declared_width;
     TScreen *screen = TScreenOf(graphic->xw);
@@ -147,16 +168,9 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     if (context->background == COLOR_HOLE)
 	return;
 
-    source = graphic->pixels;
-    for (c = 0; c < width; c++) {
-	source[c] = context->background;
-    }
-    target = source;
-    length = (size_t) width * sizeof(*target);
-    for (r = 1; r < height; r++) {
-	target += graphic->max_width;
-	memcpy(target, source, length);
-    }
+    fast_clear_background(graphic->pixels, graphic->max_width,
+			  context->background,
+			  0, 0, height, width);
 
 #if 1
    /* FIXME:
@@ -620,6 +634,10 @@ gnl_scroll()
      * discard the remainder of the graphic depending on SixelScrolling.
      */
     if (scroll_lines > 0) {
+
+
+/* XXX clear background here */
+
 	if (SixelScrolling(s_xw)) {
 	    xtermScroll(s_xw, scroll_lines);
 	    if (s_screen->incremental_graphics) {
