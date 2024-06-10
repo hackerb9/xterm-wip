@@ -51,10 +51,10 @@
 typedef struct {
     RegisterNum current_register;
     RegisterNum background;	/* current background color register or hole */
-    int aspect_vertical;
+    int aspect_vertical;	/* sixel aspect ratio */
     int aspect_horizontal;
-    int declared_width;		/* size as reported by the application */
-    int declared_height;	/* size as reported by the application */
+    int declared_width;		/* size (in screen pixels) from DECGRA */
+    int declared_height;	/* size (in screen pixels) from DECGRA */
     int row;			/* context used during parsing */
     int col;			/* context used during parsing */
 } SixelContext;
@@ -126,25 +126,45 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     RegisterNum *target;
     size_t length;
     int r, c;
+    int height = context->declared_height;
+    int width = context->declared_width;
+    TScreen *screen = TScreenOf(graphic->xw);
 
-    TRACE(("initializing sixel background to size=%dx%d bgcolor=%hu\n",
-	   context->declared_width,
-	   context->declared_height,
+    if (height == 0) {		/* Clear from cursor to bottom row */
+	height = (screen->bot_marg - graphic->charrow + 1) * FontHeight(screen);
+	height = Min( height, graphic->max_height );
+    }
+    if (width == 0) {		/* Clear from cursor to right margin */
+	width = (screen->rgt_marg - graphic->charcol + 1) * FontWidth(screen);
+	width = Min( width, graphic->max_width );
+    }
+
+    TRACE(("initializing sixel background at (r%d,c%d) to size=%dx%d bgcolor=%hu\n",
+	   graphic->charrow, graphic->charcol,
+	   width, height,
 	   context->background));
 
     if (context->background == COLOR_HOLE)
 	return;
 
     source = graphic->pixels;
-    for (c = 0; c < graphic->actual_width; c++) {
+    for (c = 0; c < width; c++) {
 	source[c] = context->background;
     }
     target = source;
-    length = (size_t) graphic->actual_width * sizeof(*target);
-    for (r = 1; r < graphic->actual_height; r++) {
+    length = (size_t) width * sizeof(*target);
+    for (r = 1; r < height; r++) {
 	target += graphic->max_width;
 	memcpy(target, source, length);
     }
+
+    if (width > graphic->actual_width) {
+	graphic->actual_width = width;
+    }
+    if (height > graphic->actual_height) {
+	graphic->actual_height = height;
+    }
+
     graphic->color_registers_used[context->background] = True;
 }
 
@@ -736,14 +756,6 @@ parse_sixel_char(char cp)
 
 	/* cp (next character to consume) is not digit, space, or semicolon, so finish up with raster  */
 	s_raster_state = s_NOTRASTER;
-
-	/* FIXME: Declared size should clear & scroll rectangle when no raster attributes */
-	if (s_context.declared_width > s_graphic->actual_width) {
-	    s_graphic->actual_width = s_context.declared_width;
-	}
-	if (s_context.declared_height > s_graphic->actual_height) {
-	    s_graphic->actual_height = s_context.declared_height;
-	}
 
 	/* FALLTHRU TO PROCESS cp */
     }
