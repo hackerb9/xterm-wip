@@ -71,8 +71,8 @@ typedef struct {
     int max_width;              /* largest image which can be stored */
     int max_height;             /* largest image which can be stored */
     unsigned valid_registers;   /* for wrap-around behavior */
-    int actual_width;           /* size of image before scaling */
-    int actual_height;          /* size of image before scaling */
+    int bitmap_width;           /* size of image before scaling */
+    int bitmap_height;          /* size of image before scaling */
     int private_colors;         /* if not using the shared color registers */
     int charrow;                /* upper left starting point in characters */
     int charcol;                /* upper left starting point in characters */
@@ -87,7 +87,7 @@ typedef struct {
 } Graphic;
 
 extern Graphic *get_new_graphic(XtermWidget /* xw */, int /* charrow */, int /* charcol */, unsigned /* type */);
-extern Graphic *get_new_or_matching_graphic(XtermWidget /* xw */, int /* charrow */, int /* charcol */, int /* actual_width */, int /* actual_height */, unsigned /* type */);
+extern Graphic *get_new_or_matching_graphic(XtermWidget /* xw */, int /* charrow */, int /* charcol */, int /* bitmap_width */, int /* bitmap_height */, unsigned /* type */);
 extern RegisterNum read_pixel(Graphic */* graphic */, int /* x */, int /* y */);
 extern void draw_solid_pixel(Graphic */* graphic */, int /* x */, int /* y */, unsigned /* color */);
 extern void draw_solid_rectangle(Graphic */* graphic */, int /* x1 */, int /* y1 */, int /* x2 */, int /* y2 */, unsigned /* color */);
@@ -113,7 +113,7 @@ extern void noleaks_graphics(Display */* dpy */);
 #else
 
 #define get_new_graphic(xw, charrow, charcol, type) /* nothing */
-#define get_new_or_matching_graphic(xw, charrow, charcol, actual_width, actual_height, type) /* nothing */
+#define get_new_or_matching_graphic(xw, charrow, charcol, bitmap_width, bitmap_height, type) /* nothing */
 #define read_pixel(graphic, x, y) /* nothing */
 #define draw_solid_pixel(graphic, x, y, color) /* nothing */
 #define draw_solid_rectangle(graphic, x1, y1, x2, y2, color) /* nothing */

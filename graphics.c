@@ -249,9 +249,9 @@ extern RegisterNum
 read_pixel(Graphic *graphic, int x, int y)
 {
     return (((x) >= 0 &&
-	     (x) < (graphic)->actual_width * graphic->pixw &&
+	     (x) < (graphic)->bitmap_width * graphic->pixw &&
 	     (y) >= 0 &&
-	     (y) < (graphic)->actual_height * graphic->pixh)
+	     (y) < (graphic)->bitmap_height * graphic->pixh)
 	    ? (graphic)->pixels[(y) * (graphic)->max_width + (x)]
 	    : (RegisterNum) COLOR_HOLE);
 }
@@ -280,8 +280,8 @@ draw_solid_pixel(Graphic *graphic, int x, int y, unsigned color)
 	   ((color != COLOR_HOLE)
 	    ? (unsigned) graphic->color_registers[color].b : 0U)));
 #endif
-    if (x >= 0 && x < graphic->actual_width * graphic->pixw &&
-	y >= 0 && y < graphic->actual_height * graphic->pixh) {
+    if (x >= 0 && x < graphic->bitmap_width * graphic->pixw &&
+	y >= 0 && y < graphic->max_height * graphic->pixh) {
 	_draw_pixel(graphic, x, y, color);
 	if (color < MAX_COLOR_REGISTERS)
 	    graphic->color_registers_used[color] = True;
@@ -303,18 +303,18 @@ draw_solid_rectangle(Graphic *graphic, int x1, int y1, int x2, int y2, unsigned 
 	EXCHANGE(y1, y2, tmp);
     }
 
-    if (x2 < 0 || x1 >= graphic->actual_width * graphic->pixw ||
-	y2 < 0 || y1 >= graphic->actual_height * graphic->pixh)
+    if (x2 < 0 || x1 >= graphic->bitmap_width * graphic->pixw ||
+	y2 < 0 || y1 >= graphic->bitmap_height * graphic->pixh)
 	return;
 
     if (x1 < 0)
 	x1 = 0;
-    if (x2 >= graphic->actual_width * graphic->pixw)
-	x2 = graphic->actual_width * graphic->pixw - 1;
+    if (x2 >= graphic->bitmap_width * graphic->pixw)
+	x2 = graphic->bitmap_width * graphic->pixw - 1;
     if (y1 < 0)
 	y1 = 0;
-    if (y2 >= graphic->actual_height * graphic->pixh)
-	y2 = graphic->actual_height * graphic->pixh - 1;
+    if (y2 >= graphic->bitmap_height * graphic->pixh)
+	y2 = graphic->bitmap_height * graphic->pixh - 1;
 
     if (color < MAX_COLOR_REGISTERS)
 	graphic->color_registers_used[color] = True;
@@ -356,18 +356,18 @@ copy_overlapping_area(Graphic *graphic, int src_ul_x, int src_ul_y,
     for (yy = sy; yy != ey + dy; yy += dy) {
 	int dst_y = dst_ul_y + yy;
 	int src_y = src_ul_y + yy;
-	if (dst_y < 0 || dst_y >= (int) graphic->actual_height * graphic->pixh)
+	if (dst_y < 0 || dst_y >= (int) graphic->bitmap_height * graphic->pixh)
 	    continue;
 
 	for (xx = sx; xx != ex + dx; xx += dx) {
 	    int dst_x = dst_ul_x + xx;
 	    int src_x = src_ul_x + xx;
 	    int cell;
-	    if (dst_x < 0 || dst_x >= (int) graphic->actual_width * graphic->pixw)
+	    if (dst_x < 0 || dst_x >= (int) graphic->bitmap_width * graphic->pixw)
 		continue;
 
-	    if (src_x < 0 || src_x >= (int) graphic->actual_width  * graphic->pixw ||
-		src_y < 0 || src_y >= (int) graphic->actual_height * graphic->pixh)
+	    if (src_x < 0 || src_x >= (int) graphic->bitmap_width  * graphic->pixw ||
+		src_y < 0 || src_y >= (int) graphic->bitmap_height * graphic->pixh)
 		color = (RegisterNum) default_color;
 	    else
 		color = graphic->pixels[(unsigned) (src_y *
@@ -710,8 +710,8 @@ init_graphic(TScreen *screen,
      * dxterm      ?x? ?x?  variable?
      */
 
-    graphic->actual_width = 0;
-    graphic->actual_height = 0;
+    graphic->bitmap_width = 0;
+    graphic->bitmap_height = 0;
 
     graphic->pixw = 1;
     graphic->pixh = 1;
@@ -818,8 +818,8 @@ Graphic *
 get_new_or_matching_graphic(XtermWidget xw,
 			    int charrow,
 			    int charcol,
-			    int actual_width,
-			    int actual_height,
+			    int bitmap_width,
+			    int bitmap_height,
 			    unsigned type)
 {
     TScreen const *screen = TScreenOf(xw);
@@ -830,32 +830,32 @@ get_new_or_matching_graphic(XtermWidget xw,
     FOR_EACH_SLOT(ii) {
 	TRACE(("checking slot=%u for graphic at %d,%d %dx%d bufferid=%d type=%u\n", ii,
 	       charrow, charcol,
-	       actual_width, actual_height,
+	       bitmap_width, bitmap_height,
 	       bufferid, type));
 	if ((graphic = getActiveSlot(ii))) {
 	    if (graphic->type == type &&
 		graphic->bufferid == bufferid &&
 		graphic->charrow == charrow &&
 		graphic->charcol == charcol &&
-		graphic->actual_width == actual_width &&
-		graphic->actual_height == actual_height) {
+		graphic->bitmap_width == bitmap_width &&
+		graphic->bitmap_height == bitmap_height) {
 		TRACE(("found existing graphic slot=%u id=%u\n", ii, graphic->id));
 		return graphic;
 	    }
 	    TRACE(("not a match: graphic at %d,%d %dx%d bufferid=%d type=%u\n",
 		   graphic->charrow, graphic->charcol,
-		   graphic->actual_width, graphic->actual_height,
+		   graphic->bitmap_width, graphic->bitmap_height,
 		   graphic->bufferid, graphic->type));
 	}
     }
 
     /* if no match get a new graphic */
     if ((graphic = get_new_graphic(xw, charrow, charcol, type))) {
-	graphic->actual_width = actual_width;
-	graphic->actual_height = actual_height;
+	graphic->bitmap_width = bitmap_width;
+	graphic->bitmap_height = bitmap_height;
 	TRACE(("no match; created graphic at %d,%d %dx%d bufferid=%d type=%u\n",
 	       graphic->charrow, graphic->charcol,
-	       graphic->actual_width, graphic->actual_height,
+	       graphic->bitmap_width, graphic->bitmap_height,
 	       graphic->bufferid, graphic->type));
     }
     return graphic;
@@ -944,8 +944,8 @@ refresh_graphic(TScreen const *screen,
     int const ph = graphic->pixh;
     int const graph_x = graphic->charcol * FontWidth(screen);
     int const graph_y = graphic->charrow * FontHeight(screen);
-    int const graph_w = graphic->actual_width * graphic->pixw;
-    int const graph_h = graphic->actual_height * graphic->pixh;
+    int const graph_w = graphic->bitmap_width * graphic->pixw;
+    int const graph_h = graphic->bitmap_height * graphic->pixh;
     int const mw = graphic->max_width;
 
     int r, c;
@@ -960,8 +960,8 @@ refresh_graphic(TScreen const *screen,
 	   graphic->id,
 	   graph_x, graph_y, draw_w, draw_h,
 	   graphic->valid,
-	   graphic->actual_width,
-	   graphic->actual_height,
+	   graphic->bitmap_width,
+	   graphic->bitmap_height,
 	   pw, ph,
 	   graphic->max_width,
 	   graphic->max_height));
@@ -1167,12 +1167,12 @@ dump_graphic(Graphic const *graphic)
 
     (void) graphic;
 
-    TRACE(("graphic stats: id=%u charrow=%d charcol=%d actual_width=%d actual_height=%d pixw=%d pixh=%d\n",
+    TRACE(("graphic stats: id=%u charrow=%d charcol=%d bitmap_width=%d bitmap_height=%d pixw=%d pixh=%d\n",
 	   graphic->id,
 	   graphic->charrow,
 	   graphic->charcol,
-	   graphic->actual_width,
-	   graphic->actual_height,
+	   graphic->bitmap_width,
+	   graphic->bitmap_height,
 	   graphic->pixw,
 	   graphic->pixh));
 
@@ -1189,8 +1189,8 @@ dump_graphic(Graphic const *graphic)
 
 #ifdef DUMP_BITMAP
     TRACE(("graphic pixels:\n"));
-    for (r = 0; r < graphic->actual_height * graphic->pixh; r++) {
-	for (c = 0; c < graphic->actual_width; c++) {
+    for (r = 0; r < graphic->bitmap_height * graphic->pixh; r++) {
+	for (c = 0; c < graphic->bitmap_width; c++) {
 	    color = graphic->pixels[r * graphic->max_width + c];
 	    if (color == COLOR_HOLE) {
 		TRACE(("?"));
@@ -1235,12 +1235,12 @@ erase_graphic(Graphic *graphic, int x, int y, int w, int h)
 
     TRACE(("erasing graphic %d,%d %dx%d\n", x, y, w, h));
 
-    for (r = 0; r < graphic->actual_height; r++) {
+    for (r = 0; r < graphic->bitmap_height; r++) {
 	if (rbase >= r_min
 	    && rbase <= r_max) {
 	    int c;
 	    int cbase = 0;
-	    for (c = 0; c < graphic->actual_width; c++) {
+	    for (c = 0; c < graphic->bitmap_width; c++) {
 		if (cbase >= c_min
 		    && cbase <= c_max) {
 		    const int cell = r * graphic->max_width + c;
@@ -1325,7 +1325,7 @@ GetGraphicsOrder(TScreen *screen,
 		continue;
 	    }
 	    if (graphic->bufferid == 1 &&
-		graphic->charrow + (graphic->actual_height * graphic->pixh +
+		graphic->charrow + (graphic->bitmap_height * graphic->pixh +
 				    FontHeight(screen) - 1) /
 		FontHeight(screen) < 0) {
 		TRACE(("skipping graphic %d from alt buffer (%d) when drawing screen=%d because it is completely in scrollback area\n",
@@ -1447,8 +1447,8 @@ RefreshClipped(TScreen *screen,
 	Graphic *graphic = ordered_graphics[jj];
 	int draw_x = graphic->charcol * FontWidth(screen);
 	int draw_y = graphic->charrow * FontHeight(screen);
-	int draw_w = graphic->actual_width  * graphic->pixw;
-	int draw_h = graphic->actual_height * graphic->pixh;
+	int draw_w = graphic->bitmap_width  * graphic->pixw;
+	int draw_h = graphic->bitmap_height * graphic->pixh;
 
 	if (screen->whichBuf != 0) {
 	    if (graphic->bufferid != 0) {

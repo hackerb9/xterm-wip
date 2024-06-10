@@ -158,11 +158,11 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
 	memcpy(target, source, length);
     }
 
-    if (width > graphic->actual_width) {
-	graphic->actual_width = width;
+    if (width > graphic->bitmap_width) {
+	graphic->bitmap_width = width;
     }
-    if (height > graphic->actual_height) {
-	graphic->actual_height = height;
+    if (height > graphic->bitmap_height) {
+	graphic->bitmap_height = height;
     }
 
     graphic->color_registers_used[context->background] = True;
@@ -197,11 +197,11 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	if (pix_row >= 0 &&
 	    pix_row < mh) {
 	    if (sixel & (1 << pix)) {
-		if (context->col >= graphic->actual_width) {
-		    graphic->actual_width = context->col + 1;
+		if (context->col >= graphic->bitmap_width) {
+		    graphic->bitmap_width = context->col + 1;
 		}
-		if (pix_row >= graphic->actual_height) {
-		    graphic->actual_height = pix_row + 1;
+		if (pix_row >= graphic->bitmap_height) {
+		    graphic->bitmap_height = pix_row + 1;
 		}
 		SetSpixel(graphic, pix_col, color);
 	    }
@@ -327,8 +327,8 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	double row_delta = 0.0, col_delta = 0.0;
 
 	new_row = graphic->charrow;
-	if (graphic->actual_height > 0) {
-	    row_delta = graphic->actual_height * graphic->pixh;
+	if (graphic->bitmap_height > 0) {
+	    row_delta = graphic->bitmap_height * graphic->pixh;
 	    row_delta -= 1;	/* no increment when gfxheight == fontheight */ 
 	    row_delta /= FontHeight(screen);
 	    new_row += row_delta;
@@ -339,8 +339,8 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 
 	/* No DEC terminals did this, but it is a useful option */
 	if (screen->sixel_scrolls_right) {
-	    if (graphic->actual_width > 0) {
-		col_delta = graphic->actual_width * graphic->pixw;
+	    if (graphic->bitmap_width > 0) {
+		col_delta = graphic->bitmap_width * graphic->pixw;
 		col_delta -= 1;	/* no increment when gfxwidth == fontwidth */ 
 		col_delta /= FontWidth(screen);
 		new_col += col_delta;
@@ -366,7 +366,7 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 
 	TRACE(("sixel: setting text position after %dx%d (pixw=%d, pixh=%d)\n"
 	       "\t (row,col) delta: (%.1f, %.1f),\t old pos (%d %d),\t new: (%d,%d)\n",
-	       graphic->actual_width, graphic->actual_height,
+	       graphic->bitmap_width, graphic->bitmap_height,
 	       graphic->pixw, graphic->pixh,
 	       row_delta, col_delta,
 	       graphic->charrow, graphic->charcol,
@@ -587,7 +587,7 @@ static void
 gnl_scroll()
 {
     /* FIXME: this algorithm is not correct. */ 
-    int whatisthis = s_graphic->actual_height - s_context.row;
+    int whatisthis = s_graphic->bitmap_height - s_context.row;
     int scroll_lines = 
 	(
 	    s_graphic->pixh * s_context.row
@@ -909,7 +909,7 @@ parse_sixel_char(char cp)
 	TRACE(("sixel: DECGNL Graphic New Line\n"));
 	s_context.col = 0;
 	s_context.row += 6;
-	s_graphic->actual_height = Max(s_graphic->actual_height, s_context.row);
+	s_graphic->bitmap_height = Max(s_graphic->bitmap_height, s_context.row);
 	gnl_scroll();
 	TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     } else if (cp == '!') {	/* DECGRI */
