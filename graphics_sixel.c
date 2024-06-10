@@ -167,12 +167,13 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
 
     * bitmap_wh must NOT be set to the size of the background because Graphic
       objects presume the bitmap_wh should be multiplied by the aspect ratio.
+      Dividing by pixh is incorrect as the result is stored as an integer.
     */
-    if (width > graphic->bitmap_width) {
-	graphic->bitmap_width = width;
+    if (height > graphic->bitmap_height * graphic->pixh) {
+	graphic->bitmap_height = height / graphic->pixh;
     }
-    if (height > graphic->bitmap_height) {
-	graphic->bitmap_height = height;
+    if (width > graphic->bitmap_width * graphic->pixw) {
+	graphic->bitmap_width = width / graphic->pixw;
     }
 #endif
 
