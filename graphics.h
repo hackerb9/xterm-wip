@@ -105,6 +105,8 @@ extern void refresh_displayed_graphics(XtermWidget /* xw */, int /* leftcol */, 
 extern void refresh_modified_displayed_graphics(XtermWidget /* xw */);
 extern void reset_displayed_graphics(TScreen const */* screen */);
 extern void scroll_displayed_graphics(XtermWidget /* xw */, int /* rows */);
+extern void init_graphic_background(Graphic * /* graphic */, RegisterNum /* color */);
+extern void graphic_memcpy_rectangle(Graphic * /* graphic */, int /* x1 */, int /* y1 */, int /* x2 */, int /* y2 */, RegisterNum /* bg */);
 
 #ifdef NO_LEAKS
 extern void noleaks_graphics(Display */* dpy */);
