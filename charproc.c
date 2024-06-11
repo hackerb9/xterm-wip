@@ -6100,7 +6100,7 @@ static Char *v_bufend;		/* end of physical buffer */
 void
 v_write(int f, const Char *data, size_t len)
 {
-    TRACE2(("v_write(%d:%s)\n", len, visibleChars(data, len)));
+    TRACE2(("v_write(%lu:%s)\n", len, visibleChars(data, len)));
     if (v_bufstr == NULL) {
 	if (len > 0) {
 	    v_buffer = (Char *) XtMalloc((Cardinal) len);
