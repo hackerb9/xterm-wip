@@ -119,31 +119,6 @@ static int s_raster_params[s_RASTERDONE + 1];
  *	http://odl.sysworks.biz/disk$axpdocdec023/office/dwmot126/vmsdw126/relnotes/6470pro_004.html
  */
 
-/* Given a Graphic.pixels array which is organized in rows of size max_width,
- * clear a rectangle from (r0, c0) to (r1, c1) using color register bg.
- * (This could be optimized further, but is good enough for now). 
- */
-static void
-fast_clear_background(RegisterNum *pixels, unsigned max_width, RegisterNum bg,
-		      unsigned r0, unsigned c0, unsigned r1, unsigned c1)
-{
-    RegisterNum *source;
-    RegisterNum *target;
-    size_t length;
-    int r, c;
-
-    source = pixels;
-    for (c = c0 + r0*max_width; c < c1; c++) {
-	source[c] = bg;
-    }
-    target = source;
-    length = (size_t) (c1 - c0) * sizeof(*target);
-    for (r = r0+1; r < r1; r++) {
-	target += max_width;
-	memcpy(target, source, length);
-    }
-}
-
 static void
 init_sixel_background(Graphic *graphic, SixelContext const *context)
 {
@@ -151,11 +126,11 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     int width = context->declared_width;
     TScreen *screen = TScreenOf(graphic->xw);
 
-    if (height == 0) {		/* Clear from cursor to bottom row */
+    if (height == 0) {		/* Paint bg from cursor to bottom row */
 	height = (screen->bot_marg - graphic->charrow + 1) * FontHeight(screen);
 	height = Min( height, graphic->max_height );
     }
-    if (width == 0) {		/* Clear from cursor to right margin */
+    if (width == 0) {		/* Paint bg from cursor to right margin */
 	width = (screen->rgt_marg - graphic->charcol + 1) * FontWidth(screen);
 	width = Min( width, graphic->max_width );
     }
@@ -168,29 +143,46 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     if (context->background == COLOR_HOLE)
 	return;
 
-    fast_clear_background(graphic->pixels, graphic->max_width,
-			  context->background,
-			  0, 0, height, width);
+    if ( context->declared_width == 0 && context->declared_height == 0 )
+    {
+	/* No raster attributes, so make entire background opaque */
+	init_graphic_background(graphic, context->background); 
+    }
+    else
+    {
+	/* FIXME: erroneously presuming declared_wh divisible by pix_wh   */
+	graphic->bitmap_width = Max( graphic->bitmap_width, context->
+				     declared_width / graphic->pixw + 1);
+	graphic->bitmap_height = Max( graphic->bitmap_height,
+				      context->declared_height / graphic->pixh + 1 );
+
+	/* Make the selected rectangle opaque */
+	graphic_memcpy_rectangle(graphic, 0, 0, width, height, context->background);
+    }
 
 #if 1
    /* FIXME:
     * bitmap_wh must be the size of the bg or the bg will not be displayed.
 
     * bitmap_wh must NOT be the size of the bg, or the cursor will be placed
-      below the background, which is incorrect.
+       below the background, which is incorrect.
 
-    * bitmap_wh must NOT be set to the size of the background because Graphic
-      objects presume the bitmap_wh should be multiplied by the aspect ratio.
-      Dividing by pixh is incorrect as the result is stored as an integer.
+    * bitmap_wh should NOT be the size of the background because graphic.c
+      presumes the bitmap_wh should be multiplied by the aspect ratio.
+      (Dividing by pix_wh as we're doing as an approximation is incorrect as
+      the result is stored as an integer.)
     */
-    if (height > graphic->bitmap_height * graphic->pixh) {
+    if ( context->declared_height == 0 &&
+	 height > graphic->bitmap_height * graphic->pixh)
+    {
 	graphic->bitmap_height = height / graphic->pixh;
     }
-    if (width > graphic->bitmap_width * graphic->pixw) {
+    if ( context->declared_width == 0 &&
+	 width > graphic->bitmap_width * graphic->pixw)
+    {
 	graphic->bitmap_width = width / graphic->pixw;
     }
 #endif
-
 
     graphic->color_registers_used[context->background] = True;
 }
@@ -611,7 +603,7 @@ parse_sixel_incremental_display(void)
  * FIXME: merge incremental & non-incremental scrolling.
  */
 static void
-gnl_scroll()
+gnl_scroll(void)
 {
     /* FIXME: this algorithm is not correct. */ 
     int whatisthis = s_graphic->bitmap_height - s_context.row;
@@ -634,10 +626,6 @@ gnl_scroll()
      * discard the remainder of the graphic depending on SixelScrolling.
      */
     if (scroll_lines > 0) {
-
-
-/* XXX clear background here */
-
 	if (SixelScrolling(s_xw)) {
 	    xtermScroll(s_xw, scroll_lines);
 	    if (s_screen->incremental_graphics) {
