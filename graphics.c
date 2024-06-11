@@ -280,12 +280,62 @@ draw_solid_pixel(Graphic *graphic, int x, int y, unsigned color)
 	   ((color != COLOR_HOLE)
 	    ? (unsigned) graphic->color_registers[color].b : 0U)));
 #endif
-    if (x >= 0 && x < graphic->bitmap_width * graphic->pixw &&
-	y >= 0 && y < graphic->max_height * graphic->pixh) {
+    if (x >= 0 && x < graphic->bitmap_width &&
+	y >= 0 && y < graphic->bitmap_height) {
 	_draw_pixel(graphic, x, y, color);
 	if (color < MAX_COLOR_REGISTERS)
 	    graphic->color_registers_used[color] = True;
     }
+}
+
+/* Clear a rectangle from (x1, y1) to (x2, y2) to background color bg.
+ * Similar to draw_solid_rectangle but faster.
+ * (This could be optimized further, but is good enough for now). 
+ */
+void
+graphic_memcpy_rectangle(Graphic *graphic,
+			 int x1, int y1, int x2, int y2,
+			 RegisterNum bg)
+{
+    RegisterNum *source;
+    RegisterNum *target;
+    size_t length;
+    int y, x;
+    int tmp;
+
+    assert(bg <= MAX_COLOR_REGISTERS);
+
+    if (x1 > x2) {
+	EXCHANGE(x1, x2, tmp);
+    }
+    if (y1 > y2) {
+	EXCHANGE(y1, y2, tmp);
+    }
+
+    if (x2 < 0 || x1 >= graphic->max_width ||
+	y2 < 0 || y1 >= graphic->max_height)
+	return;
+
+    if (x1 < 0)
+	x1 = 0;
+    if (x2 >= graphic->max_width)
+	x2 = graphic->max_width - 1;
+    if (y1 < 0)
+	y1 = 0;
+    if (y2 >= graphic->max_height)
+	y2 = graphic->max_height - 1;
+
+    source = graphic->pixels;
+    for (x = x1 + graphic->max_width * y1; x < x2; x++) {
+	source[x] = bg;
+    }
+    target = source;
+    length = (size_t) (x2 - x1) * sizeof(*target);
+    for (y = y1+1; y < y2; y++) {
+	target += graphic->max_width;
+	memcpy(target, source, length);
+    }
+    graphic->dirty = True;
 }
 
 void
@@ -293,6 +343,13 @@ draw_solid_rectangle(Graphic *graphic, int x1, int y1, int x2, int y2, unsigned 
 {
     int x, y;
     int tmp;
+
+    TRACE(("drawing solid rectangle from (%d,%d) to (%d, %d), color %d\n",
+	   x1, y1, x2, y2, color));
+    TRACE(("\t bitmap size (%d,%d), max size (%d, %d), max colors %d\n",
+	   graphic->bitmap_height, graphic->bitmap_width,
+	   graphic->max_height, graphic->max_width,
+	   MAX_COLOR_REGISTERS));
 
     assert(color <= MAX_COLOR_REGISTERS);
 
@@ -303,21 +360,22 @@ draw_solid_rectangle(Graphic *graphic, int x1, int y1, int x2, int y2, unsigned 
 	EXCHANGE(y1, y2, tmp);
     }
 
-    if (x2 < 0 || x1 >= graphic->bitmap_width * graphic->pixw ||
-	y2 < 0 || y1 >= graphic->bitmap_height * graphic->pixh)
+    if (x2 < 0 || x1 >= graphic->bitmap_width ||
+	y2 < 0 || y1 >= graphic->bitmap_height)
 	return;
 
     if (x1 < 0)
 	x1 = 0;
-    if (x2 >= graphic->bitmap_width * graphic->pixw)
-	x2 = graphic->bitmap_width * graphic->pixw - 1;
+    if (x2 >= graphic->bitmap_width)
+	x2 = graphic->bitmap_width - 1;
     if (y1 < 0)
 	y1 = 0;
-    if (y2 >= graphic->bitmap_height * graphic->pixh)
-	y2 = graphic->bitmap_height * graphic->pixh - 1;
+    if (y2 >= graphic->bitmap_height)
+	y2 = graphic->bitmap_height - 1;
 
     if (color < MAX_COLOR_REGISTERS)
 	graphic->color_registers_used[color] = True;
+
     for (y = y1; y <= y2; y++)
 	for (x = x1; x <= x2; x++)
 	    _draw_pixel(graphic, x, y, color);
@@ -671,6 +729,16 @@ get_color_register_count(TScreen const *screen)
     }
 }
 
+/* Clear entire pixel array to background color bg. (Can be "COLOR_HOLE"). */
+void
+init_graphic_background(Graphic *graphic, RegisterNum bg) {
+    const unsigned max_pixels = (unsigned) (graphic->max_width *
+					    graphic->max_height);
+
+    graphic->dirty = True;
+    memset(graphic->pixels, bg, max_pixels * sizeof(RegisterNum));
+}
+
 static void
 init_graphic(TScreen *screen,
 	     Graphic *graphic,
@@ -687,7 +755,7 @@ init_graphic(TScreen *screen,
 
     graphic->hidden = False;
     graphic->dirty = True;
-    memset(graphic->pixels, COLOR_HOLE & 0xff, max_pixels * sizeof(RegisterNum));
+    init_graphic_background(graphic, COLOR_HOLE & 0xff);
     memset(graphic->color_registers_used, False, sizeof(graphic->color_registers_used));
 
     /*
