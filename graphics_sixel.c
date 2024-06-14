@@ -616,7 +616,6 @@ gnl_scroll(void)
 	/ FontHeight(s_screen)
 	+ s_graphic->charrow
 	- s_screen->bot_marg
-	+ 1
 	;
     if (scroll_lines < 0)
 	scroll_lines = 0;
