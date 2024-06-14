@@ -152,9 +152,9 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     {
 	/* FIXME: erroneously presuming declared_wh divisible by pix_wh   */
 	graphic->bitmap_width = Max( graphic->bitmap_width, context->
-				     declared_width / graphic->pixw + 1);
+				     declared_width / graphic->pixw);
 	graphic->bitmap_height = Max( graphic->bitmap_height,
-				      context->declared_height / graphic->pixh + 1 );
+				      context->declared_height / graphic->pixh);
 
 	/* Make the selected rectangle opaque */
 	graphic_memcpy_rectangle(graphic, 0, 0, width, height, context->background);
