@@ -73,6 +73,10 @@ typedef struct {
     unsigned valid_registers;   /* for wrap-around behavior */
     int bitmap_width;           /* size of image before scaling */
     int bitmap_height;          /* size of image before scaling */
+    int displayed_width;	/* size of image on screen, after scaling */
+    int displayed_height;	/* size of image on screen, after scaling */
+    int cursor_x_offset;	/* num screen pixels to move cursor right */
+    int cursor_y_offset;	/* num screen pixels to move cursor down */
     int private_colors;         /* if not using the shared color registers */
     int charrow;                /* upper left starting point in characters */
     int charcol;                /* upper left starting point in characters */

@@ -249,9 +249,9 @@ extern RegisterNum
 read_pixel(Graphic *graphic, int x, int y)
 {
     return (((x) >= 0 &&
-	     (x) < (graphic)->bitmap_width * graphic->pixw &&
+	     (x) < (graphic)->displayed_width  &&
 	     (y) >= 0 &&
-	     (y) < (graphic)->bitmap_height * graphic->pixh)
+	     (y) < (graphic)->displayed_height)
 	    ? (graphic)->pixels[(y) * (graphic)->max_width + (x)]
 	    : (RegisterNum) COLOR_HOLE);
 }
@@ -280,8 +280,8 @@ draw_solid_pixel(Graphic *graphic, int x, int y, unsigned color)
 	   ((color != COLOR_HOLE)
 	    ? (unsigned) graphic->color_registers[color].b : 0U)));
 #endif
-    if (x >= 0 && x < graphic->bitmap_width &&
-	y >= 0 && y < graphic->bitmap_height) {
+    if (x >= 0 && x < graphic->displayed_width &&
+	y >= 0 && y < graphic->displayed_height) {
 	_draw_pixel(graphic, x, y, color);
 	if (color < MAX_COLOR_REGISTERS)
 	    graphic->color_registers_used[color] = True;
@@ -414,18 +414,18 @@ copy_overlapping_area(Graphic *graphic, int src_ul_x, int src_ul_y,
     for (yy = sy; yy != ey + dy; yy += dy) {
 	int dst_y = dst_ul_y + yy;
 	int src_y = src_ul_y + yy;
-	if (dst_y < 0 || dst_y >= (int) graphic->bitmap_height * graphic->pixh)
+	if (dst_y < 0 || dst_y >= (int) graphic->displayed_height)
 	    continue;
 
 	for (xx = sx; xx != ex + dx; xx += dx) {
 	    int dst_x = dst_ul_x + xx;
 	    int src_x = src_ul_x + xx;
 	    int cell;
-	    if (dst_x < 0 || dst_x >= (int) graphic->bitmap_width * graphic->pixw)
+	    if (dst_x < 0 || dst_x >= (int) graphic->displayed_width)
 		continue;
 
-	    if (src_x < 0 || src_x >= (int) graphic->bitmap_width  * graphic->pixw ||
-		src_y < 0 || src_y >= (int) graphic->bitmap_height * graphic->pixh)
+	    if (src_x < 0 || src_x >= (int) graphic->displayed_width ||
+		src_y < 0 || src_y >= (int) graphic->displayed_height)
 		color = (RegisterNum) default_color;
 	    else
 		color = graphic->pixels[(unsigned) (src_y *
@@ -778,8 +778,8 @@ init_graphic(TScreen *screen,
      * dxterm      ?x? ?x?  variable?
      */
 
-    graphic->bitmap_width = 0;
-    graphic->bitmap_height = 0;
+    graphic->displayed_width = 0;
+    graphic->displayed_height = 0;
 
     graphic->pixw = 1;
     graphic->pixh = 1;
@@ -1012,8 +1012,8 @@ refresh_graphic(TScreen const *screen,
     int const ph = graphic->pixh;
     int const graph_x = graphic->charcol * FontWidth(screen);
     int const graph_y = graphic->charrow * FontHeight(screen);
-    int const graph_w = graphic->bitmap_width * graphic->pixw;
-    int const graph_h = graphic->bitmap_height * graphic->pixh;
+    int const graph_w = graphic->displayed_width;
+    int const graph_h = graphic->displayed_height;
     int const mw = graphic->max_width;
 
     int r, c;
@@ -1257,8 +1257,8 @@ dump_graphic(Graphic const *graphic)
 
 #ifdef DUMP_BITMAP
     TRACE(("graphic pixels:\n"));
-    for (r = 0; r < graphic->bitmap_height * graphic->pixh; r++) {
-	for (c = 0; c < graphic->bitmap_width; c++) {
+    for (r = 0; r < graphic->displayed_height; r++) {
+	for (c = 0; c < graphic->displayed_width; c++) {
 	    color = graphic->pixels[r * graphic->max_width + c];
 	    if (color == COLOR_HOLE) {
 		TRACE(("?"));
@@ -1303,12 +1303,12 @@ erase_graphic(Graphic *graphic, int x, int y, int w, int h)
 
     TRACE(("erasing graphic %d,%d %dx%d\n", x, y, w, h));
 
-    for (r = 0; r < graphic->bitmap_height; r++) {
+    for (r = 0; r < graphic->displayed_height; r++) {
 	if (rbase >= r_min
 	    && rbase <= r_max) {
 	    int c;
 	    int cbase = 0;
-	    for (c = 0; c < graphic->bitmap_width; c++) {
+	    for (c = 0; c < graphic->displayed_width; c++) {
 		if (cbase >= c_min
 		    && cbase <= c_max) {
 		    const int cell = r * graphic->max_width + c;
@@ -1393,7 +1393,7 @@ GetGraphicsOrder(TScreen *screen,
 		continue;
 	    }
 	    if (graphic->bufferid == 1 &&
-		graphic->charrow + (graphic->bitmap_height * graphic->pixh +
+		graphic->charrow + (graphic->displayed_height +
 				    FontHeight(screen) - 1) /
 		FontHeight(screen) < 0) {
 		TRACE(("skipping graphic %d from alt buffer (%d) when drawing screen=%d because it is completely in scrollback area\n",
@@ -1515,8 +1515,8 @@ RefreshClipped(TScreen *screen,
 	Graphic *graphic = ordered_graphics[jj];
 	int draw_x = graphic->charcol * FontWidth(screen);
 	int draw_y = graphic->charrow * FontHeight(screen);
-	int draw_w = graphic->bitmap_width  * graphic->pixw;
-	int draw_h = graphic->bitmap_height * graphic->pixh;
+	int draw_w = graphic->displayed_width;
+	int draw_h = graphic->displayed_height;
 
 	if (screen->whichBuf != 0) {
 	    if (graphic->bufferid != 0) {

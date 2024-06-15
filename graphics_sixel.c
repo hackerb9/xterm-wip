@@ -143,7 +143,7 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     if (context->background == COLOR_HOLE)
 	return;
 
-    if ( context->declared_width == 0 && context->declared_height == 0 )
+    if ( context->declared_width <= 0 && context->declared_height <= 0 )
     {
 	/* No raster attributes, so make entire background opaque */
 	init_graphic_background(graphic, context->background); 
@@ -151,10 +151,17 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     else
     {
 	/* FIXME: erroneously presuming declared_wh divisible by pix_wh   */
-	graphic->bitmap_width = Max( graphic->bitmap_width, context->
-				     declared_width / graphic->pixw);
-	graphic->bitmap_height = Max( graphic->bitmap_height,
-				      context->declared_height / graphic->pixh);
+	/* graphic->bitmap_width = Max( graphic->bitmap_width, context-> */
+	/* 			     declared_width / graphic->pixw); */
+	/* graphic->bitmap_height = Max( graphic->bitmap_height, */
+	/* 			      context->declared_height / graphic->pixh); */
+
+	graphic->displayed_width  = Max( graphic->displayed_width,
+					 context->declared_width);
+	graphic->displayed_height = Max( graphic->displayed_height,
+					 context->declared_height);
+
+
 
 	/* Make the selected rectangle opaque */
 	graphic_memcpy_rectangle(graphic, 0, 0, width, height, context->background);
@@ -173,14 +180,14 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
       the result is stored as an integer.)
     */
     if ( context->declared_height == 0 &&
-	 height > graphic->bitmap_height * graphic->pixh)
+	 height > graphic->displayed_height)
     {
-	graphic->bitmap_height = height / graphic->pixh;
+	graphic->displayed_height = height;
     }
     if ( context->declared_width == 0 &&
-	 width > graphic->bitmap_width * graphic->pixw)
+	 width > graphic->displayed_width)
     {
-	graphic->bitmap_width = width / graphic->pixw;
+	graphic->displayed_width = width;
     }
 #endif
 
@@ -200,6 +207,9 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
     int pix;
     int pix_row = context->row;
     int pix_col = context->col + (pix_row * mw);
+    int pixh = graphic->pixh;
+    int pixw = graphic->pixw;
+
 
     TRACE2(("drawing sixel at pos=%d,%d color=%hu (hole=%d, [%d,%d,%d])\n",
 	    context->col,
@@ -216,11 +226,11 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	if (pix_row >= 0 &&
 	    pix_row < mh) {
 	    if (sixel & (1 << pix)) {
-		if (context->col >= graphic->bitmap_width) {
-		    graphic->bitmap_width = context->col + 1;
+		if (context->col * pixw >= graphic->displayed_width) {
+		    graphic->displayed_width = context->col * pixh + 1;
 		}
-		if (pix_row >= graphic->bitmap_height) {
-		    graphic->bitmap_height = pix_row + 1;
+		if (pix_row * pixh >= graphic->displayed_height) {
+		    graphic->displayed_height = pix_row * pixh + 1;
 		}
 		SetSpixel(graphic, pix_col, color);
 	    }
@@ -346,8 +356,8 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	double row_delta = 0.0, col_delta = 0.0;
 
 	new_row = graphic->charrow;
-	if (graphic->bitmap_height > 0) {
-	    row_delta = graphic->bitmap_height * graphic->pixh;
+	if (graphic->displayed_height > 0) {
+	    row_delta = graphic->displayed_height;
 	    row_delta -= 1;	/* no increment when gfxheight == fontheight */ 
 	    row_delta /= FontHeight(screen);
 	    new_row += row_delta;
@@ -358,8 +368,8 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 
 	/* No DEC terminals did this, but it is a useful option */
 	if (screen->sixel_scrolls_right) {
-	    if (graphic->bitmap_width > 0) {
-		col_delta = graphic->bitmap_width * graphic->pixw;
+	    if (graphic->displayed_width > 0) {
+		col_delta = graphic->displayed_width;
 		col_delta -= 1;	/* no increment when gfxwidth == fontwidth */ 
 		col_delta /= FontWidth(screen);
 		new_col += col_delta;
@@ -605,12 +615,13 @@ parse_sixel_incremental_display(void)
 static void
 gnl_scroll(void)
 {
-    /* FIXME: this algorithm is not correct. */ 
-    int whatisthis = s_graphic->bitmap_height - s_context.row;
+   /* FIXME: this algorithm is not correct. */ 
+    int whatisthis = s_graphic->displayed_height
+		     - s_context.row * s_graphic->pixh;
     int scroll_lines = 
 	(
 	    s_graphic->pixh * s_context.row
-	    + s_graphic->pixh *  Min(6, whatisthis) 
+	    + Min(s_graphic->pixh * 6, whatisthis) 
 	    - 1
 	)
 	/ FontHeight(s_screen)
@@ -735,7 +746,8 @@ parse_sixel_char(char cp)
 		       s_raster_params[s_GETTINGHORIZ], s_graphic->max_width));
 		s_raster_params[s_GETTINGHORIZ] = s_graphic->max_width;
 	    }
-	    s_context.declared_width = s_raster_params[s_GETTINGHORIZ];
+	    if (s_raster_params[s_GETTINGHORIZ] >= 0)
+		s_context.declared_width = s_raster_params[s_GETTINGHORIZ];
 	    break;
 	case s_GETTINGVERT:	/* Pn4: Vertical extent: 1 to MAXINT */
 	    if (s_raster_params[s_GETTINGVERT] > s_graphic->max_height) {
@@ -927,7 +939,7 @@ parse_sixel_char(char cp)
 	TRACE(("sixel: DECGNL Graphic New Line\n"));
 	s_context.col = 0;
 	s_context.row += 6;
-	s_graphic->bitmap_height = Max(s_graphic->bitmap_height, s_context.row);
+	s_graphic->displayed_height = Max(s_graphic->displayed_height, s_context.row);
 	gnl_scroll();
 	TRACE2(("sixel: new graphic row location is %u\n", s_context.row));
     } else if (cp == '!') {	/* DECGRI */
