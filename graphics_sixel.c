@@ -386,12 +386,23 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 	       graphic->charrow, graphic->charcol,
 	       new_row, new_col));
 
+#if 0
+	/* FIXME What is with the loop? Not needed for incremental drawing. */
 	while (new_row > screen->bot_marg) {
 	    xtermScroll(xw, 1);
 	    new_row--;
 	    TRACE(("bottom row was past screen.  new start row=%d, cursor row=%d\n",
 		   graphic->charrow, new_row));
 	}
+#else
+	int scl_amt = new_row - screen->bot_marg;
+	if (scl_amt > 0) {
+	    TRACE(("bottom row was past screen.  new start row=%d, cursor row=%d\n",
+		   graphic->charrow, new_row));
+	    xtermScroll(xw, scl_amt);
+	    new_row = screen->bot_marg;
+	}
+#endif
 
 	if (new_row < 0) {
 	    TRACE(("WARNING: new cursor row was going to be negative (%d)!"
@@ -604,11 +615,11 @@ gnl_scroll(void)
     int whatisthis =   s_graphic->displayed_height
 		     - s_context.row * s_context.aspect_vertical;
     int scroll_lines = 
-	(
+	  (
 	      s_context.row * s_context.aspect_vertical
 	    + Min(s_context.aspect_vertical * 6, whatisthis) 
 	    - 1
-	)
+	  )
 	/ FontHeight(s_screen)
 	+ s_graphic->charrow
 	- s_screen->bot_marg
