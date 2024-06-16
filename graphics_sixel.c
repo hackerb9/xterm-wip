@@ -57,8 +57,8 @@
 typedef struct {
     RegisterNum current_register;
     RegisterNum background;	/* current background color register or hole */
-    int aspect_vertical;	/* sixel aspect ratio */
-    int aspect_horizontal;
+    int aspect_vertical;	/* sixel aspect ratio (numerator)  */
+    int aspect_horizontal;	/* sixel aspect ratio (denominator)  */
     int declared_width;		/* size (in screen pixels) from DECGRA */
     int declared_height;	/* size (in screen pixels) from DECGRA */
     int row;			/* context used during parsing */
@@ -309,11 +309,10 @@ update_sixel_aspect(SixelContext * context, Graphic *graphic)
     graphic->pixh = context->aspect_vertical;
 #endif
 
-    TRACE(("sixel aspect ratio: an=%d ad=%d -> pixw=%d pixh=%d\n",
+    TRACE(("sixel aspect ratio: %d:%d -> pixh=%d pixw=%d\n",
 	   context->aspect_vertical,
 	   context->aspect_horizontal,
-	   graphic->pixw,
-	   graphic->pixh));
+	   graphic->pixh, graphic->pixw));
 }
 
 static int
@@ -421,8 +420,8 @@ parse_sixel_init(XtermWidget xw, ANSI *params)
     s_screen = TScreenOf(xw);
     s_repeating = False;
     s_accumulator = -1;		/* No digits accumulated */
-    s_context.aspect_horizontal = 1;
     s_context.aspect_vertical = 2;
+    s_context.aspect_horizontal = 1;
 
     switch (s_screen->terminal_id) {
     case 240:
@@ -553,10 +552,10 @@ static void
 parse_sixel_incremental_display(void)
 {
     /* Watch sixels appear just like a VT340!  */
-    int dirty_row = ((s_context.row * s_graphic->pixh)
+    int dirty_row = ((s_context.row * s_context.aspect_vertical)
 		     + (s_graphic->charrow * FontHeight(s_screen)));
 
-    int dirty_col = ((s_context.col * s_graphic->pixw)
+    int dirty_col = ((s_context.col * s_context.aspect_horizontal)
 		     + (s_graphic->charcol * FontWidth(s_screen)));
 
 #ifdef _POSIX_MONOTONIC_CLOCK
@@ -602,12 +601,12 @@ static void
 gnl_scroll(void)
 {
    /* FIXME: this algorithm is not correct. */ 
-    int whatisthis = s_graphic->displayed_height
-		     - s_context.row * s_graphic->pixh;
+    int whatisthis =   s_graphic->displayed_height
+		     - s_context.row * s_context.aspect_vertical;
     int scroll_lines = 
 	(
-	    s_graphic->pixh * s_context.row
-	    + Min(s_graphic->pixh * 6, whatisthis) 
+	      s_context.row * s_context.aspect_vertical
+	    + Min(s_context.aspect_vertical * 6, whatisthis) 
 	    - 1
 	)
 	/ FontHeight(s_screen)
