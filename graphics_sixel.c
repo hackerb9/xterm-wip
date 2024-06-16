@@ -380,7 +380,7 @@ finished_parsing(XtermWidget xw, Graphic *graphic)
 
 	TRACE(("sixel: setting text position after %dx%d (pixw=%d, pixh=%d)\n"
 	       "\t (row,col) delta: (%.1f, %.1f),\t old pos (%d %d),\t new: (%d,%d)\n",
-	       graphic->bitmap_width, graphic->bitmap_height,
+	       graphic->displayed_width, graphic->displayed_height,
 	       graphic->pixw, graphic->pixh,
 	       row_delta, col_delta,
 	       graphic->charrow, graphic->charcol,
