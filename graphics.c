@@ -1024,13 +1024,13 @@ refresh_graphic(TScreen const *screen,
     if_TRACE(int total = 0);
     if_TRACE(int out_of_range = 0);
 
-    TRACE(("refreshing graphic %u from %d,%d %dx%d (valid=%d, size=%dx%d, scale=%dx%d max=%dx%d)\n",
+    TRACE(("refreshing graphic %u from %d,%d %dx%d (valid=%d, size=%dx%d, aspect=%d:%d max=%dx%d)\n",
 	   graphic->id,
 	   graph_x, graph_y, draw_w, draw_h,
 	   graphic->valid,
-	   graphic->bitmap_width,
-	   graphic->bitmap_height,
-	   pw, ph,
+	   graphic->displayed_width,
+	   graphic->displayed_height,
+	   ph, pw,
 	   graphic->max_width,
 	   graphic->max_height));
 
@@ -1093,6 +1093,9 @@ refresh_graphic(TScreen const *screen,
  *  blue:    0 degrees
  *  red:   120 degrees
  *  green: 240 degrees
+
+ * FIXME: The color shades are not quite right. See the green background on
+ * CAT.SIX.
  */
 void
 hls2rgb(int h, int l, int s, short *r, short *g, short *b)
