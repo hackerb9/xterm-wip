@@ -150,46 +150,23 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     }
     else
     {
-	/* FIXME: erroneously presuming declared_wh divisible by pix_wh   */
-	/* graphic->bitmap_width = Max( graphic->bitmap_width, context-> */
-	/* 			     declared_width / graphic->pixw); */
-	/* graphic->bitmap_height = Max( graphic->bitmap_height, */
-	/* 			      context->declared_height / graphic->pixh); */
-
 	graphic->displayed_width  = Max( graphic->displayed_width,
 					 context->declared_width);
 	graphic->displayed_height = Max( graphic->displayed_height,
 					 context->declared_height);
 
-
-
 	/* Make the selected rectangle opaque */
 	graphic_memcpy_rectangle(graphic, 0, 0, width, height, context->background);
     }
 
-#if 1
-   /* FIXME:
-    * bitmap_wh must be the size of the bg or the bg will not be displayed.
-
-    * bitmap_wh must NOT be the size of the bg, or the cursor will be placed
-       below the background, which is incorrect.
-
-    * bitmap_wh should NOT be the size of the background because graphic.c
-      presumes the bitmap_wh should be multiplied by the aspect ratio.
-      (Dividing by pix_wh as we're doing as an approximation is incorrect as
-      the result is stored as an integer.)
-    */
-    if ( context->declared_height == 0 &&
-	 height > graphic->displayed_height)
+    if ( !context->declared_height && height > graphic->displayed_height)
     {
 	graphic->displayed_height = height;
     }
-    if ( context->declared_width == 0 &&
-	 width > graphic->displayed_width)
+    if ( !context->declared_width &&  width > graphic->displayed_width)
     {
 	graphic->displayed_width = width;
     }
-#endif
 
     graphic->color_registers_used[context->background] = True;
 }
@@ -204,12 +181,8 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
     const int mh = graphic->max_height;
     const int mw = graphic->max_width;
     const RegisterNum color = context->current_register;
-    int pix;
-    int pix_row = context->row;
-    int pix_col = context->col + (pix_row * mw);
     int pixh = graphic->pixh;
     int pixw = graphic->pixw;
-
 
     TRACE2(("drawing sixel at pos=%d,%d color=%hu (hole=%d, [%d,%d,%d])\n",
 	    context->col,
@@ -222,16 +195,16 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	     ? (unsigned) graphic->color_registers[color].g : 0U),
 	    ((color != COLOR_HOLE)
 	     ? (unsigned) graphic->color_registers[color].b : 0U)));
-    for (pix = 0; pix < 6; pix++, pix_row++, pix_col += mw) {
+    for (int pix = 0; pix < 6; pix++) {
+	int pix_row = context->row + pix;
+	int pix_col = context->col + (pix_row * mw);
 	if (pix_row >= 0 &&
 	    pix_row < mh) {
 	    if (sixel & (1 << pix)) {
-		if (context->col * pixw >= graphic->displayed_width) {
-		    graphic->displayed_width = context->col * pixh + 1;
-		}
-		if (pix_row * pixh >= graphic->displayed_height) {
-		    graphic->displayed_height = pix_row * pixh + 1;
-		}
+		graphic->displayed_width  = Max(graphic->displayed_width,
+					       (context->col + 1) * pixw);
+		graphic->displayed_height = Max(graphic->displayed_height,
+						(pix_row + 1) * pixh);
 		SetSpixel(graphic, pix_col, color);
 	    }
 	} else {
