@@ -48,6 +48,12 @@
 
 /***====================================================================***/
 
+#if (__STDC_VERSION__ >= 202311L || defined(__GNUC__))
+#define SIXEL_PRINTF "%06b"
+#else
+#define SIXEL_PRINTF "0x%X"
+#endif
+
 typedef struct {
     RegisterNum current_register;
     RegisterNum background;	/* current background color register or hole */
@@ -181,8 +187,6 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
     const int mh = graphic->max_height;
     const int mw = graphic->max_width;
     const RegisterNum color = context->current_register;
-    int pixh = graphic->pixh;
-    int pixw = graphic->pixw;
 
     TRACE2(("drawing sixel at pos=%d,%d color=%hu (hole=%d, [%d,%d,%d])\n",
 	    context->col,
@@ -195,22 +199,28 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	     ? (unsigned) graphic->color_registers[color].g : 0U),
 	    ((color != COLOR_HOLE)
 	     ? (unsigned) graphic->color_registers[color].b : 0U)));
+    int maxpix=-1;
     for (int pix = 0; pix < 6; pix++) {
 	int pix_row = context->row + pix;
 	int pix_col = context->col + (pix_row * mw);
 	if (pix_row >= 0 &&
 	    pix_row < mh) {
 	    if (sixel & (1 << pix)) {
-		graphic->displayed_width  = Max(graphic->displayed_width,
-					       (context->col + 1) * pixw);
-		graphic->displayed_height = Max(graphic->displayed_height,
-						(pix_row + 1) * pixh);
+		maxpix = pix;
 		SetSpixel(graphic, pix_col, color);
 	    }
 	} else {
 	    TRACE(("sixel pixel %d out of bounds\n", pix));
 	    return False;
 	}
+    }
+    if (maxpix >= 0) {
+	int pixh = graphic->pixh;
+	int pixw = graphic->pixw;
+	graphic->displayed_width  = Max(graphic->displayed_width,
+					(context->col + 1) * pixw);
+	graphic->displayed_height = Max(graphic->displayed_height,
+					(context->row + maxpix + 1) * pixh);
     }
     return True;
 }
@@ -652,7 +662,8 @@ parse_sixel_char(char cp)
 	/* Not space or digit, so it must be the sixel to show */
 	if (cp >= 0x3F && cp <= 0x7E) {
 	    int sixel = cp - 0x3f;
-	    TRACE(("sixel repeat operator: count=%d, sixel=%x ('%c')\n",
+	    TRACE(("sixel repeat operator: count=%d, "
+		   "sixel=" SIXEL_PRINTF  " ('%c')\n",
 		   s_accumulator, sixel, (char) cp));
 	    if (s_accumulator <= 0) {
 		/* If the repeat count is zero or omitted, it is treated as 1 */
@@ -889,7 +900,7 @@ parse_sixel_char(char cp)
 
     if (cp >= 0x3f && cp <= 0x7e) {
 	int sixel = cp - 0x3f;
-	TRACE(("sixel=%x ('%c')\n", sixel, (char) cp));
+	TRACE(("sixel=" SIXEL_PRINTF " ('%c')\n", sixel, (char) cp));
 	if (!s_graphic->valid) {
 	    init_sixel_background(s_graphic, &s_context);
 	    s_graphic->valid = True;
