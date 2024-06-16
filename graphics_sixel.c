@@ -177,15 +177,9 @@ init_sixel_background(Graphic *graphic, SixelContext const *context)
     graphic->color_registers_used[context->background] = True;
 }
 
-#define ValidColumn(graphic, context) \
-	((context)->col >= 0 && \
-	 (context)->col < (graphic)->max_width)
-
 static Boolean
 set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 {
-    const int mh = graphic->max_height;
-    const int mw = graphic->max_width;
     const RegisterNum color = context->current_register;
 
     TRACE2(("drawing sixel at pos=%d,%d color=%hu (hole=%d, [%d,%d,%d])\n",
@@ -199,7 +193,20 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	     ? (unsigned) graphic->color_registers[color].g : 0U),
 	    ((color != COLOR_HOLE)
 	     ? (unsigned) graphic->color_registers[color].b : 0U)));
+
+    int width = (context->col + 1) * context->aspect_horizontal;
+    if (context->col < 0 || width >= graphic->max_width)
+    {
+	TRACE(("sixel warning: column %d (aspect %d:%d): width %d exceeds max_width %d\n",
+	       context->col, context->aspect_vertical, context->aspect_horizontal,
+	       width, graphic->max_width));
+	return False;
+    }
+    graphic->displayed_width  = Max(graphic->displayed_width,  width);
+
     int maxpix=-1;
+    const int mh = graphic->max_height;
+    const int mw = graphic->max_width;
     for (int pix = 0; pix < 6; pix++) {
 	int pix_row = context->row + pix;
 	int pix_col = context->col + (pix_row * mw);
@@ -215,12 +222,8 @@ set_sixel(Graphic *graphic, SixelContext const *context, int sixel)
 	}
     }
     if (maxpix >= 0) {
-	int pixh = graphic->pixh;
-	int pixw = graphic->pixw;
-	graphic->displayed_width  = Max(graphic->displayed_width,
-					(context->col + 1) * pixw);
-	graphic->displayed_height = Max(graphic->displayed_height,
-					(context->row + maxpix + 1) * pixh);
+	int height = (context->row + maxpix + 1) * context->aspect_vertical;
+	graphic->displayed_height = Max(graphic->displayed_height, height);
     }
     return True;
 }
@@ -674,15 +677,11 @@ parse_sixel_char(char cp)
 		s_graphic->valid = True;
 	    }
 	    if (sixel) {
-		int i;
-		for (i = 0; i < s_accumulator; i++) {
-		    if (ValidColumn(s_graphic, &s_context) &&
-			set_sixel(s_graphic, &s_context, sixel)) {
-			s_context.col++;
-		    } else {
-			s_context.col = 0;
+		for (int i = 0; i < s_accumulator; i++) {
+		    if (!set_sixel(s_graphic, &s_context, sixel)) {
 			break;
 		    }
+		    s_context.col++;
 		}
 	    } else {
 		s_context.col += s_accumulator;
@@ -906,9 +905,7 @@ parse_sixel_char(char cp)
 	    s_graphic->valid = True;
 	}
 	if (sixel) {
-	    if (!ValidColumn(s_graphic, &s_context) ||
-		!set_sixel(s_graphic, &s_context, sixel)) {
-		s_context.col = 0;
+	    if (!set_sixel(s_graphic, &s_context, sixel)) {
 		return 0;
 	    }
 	}
